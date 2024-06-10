@@ -19,6 +19,8 @@ urlpatterns = [
     path("register", Register.as_view()),
     path('sentiment_scores', SentimentScoreView.as_view(),
          name='sentiment-scores'),
+    path('net_speculative', NetSpeculativeView.as_view(),
+         name='net-speculative'),
     path('crowding_positions', CrowdingPositionsView.as_view(),
          name='crowding-positions'),
 ]

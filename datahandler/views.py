@@ -4,9 +4,10 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.status import *
 from rest_framework import permissions
-from django.db.models.functions import TruncMonth
+from django.db.models.functions import TruncMonth, TruncWeek
 from django.db.models import Sum
 from django.utils import timezone
+from collections import defaultdict
 
 # serializers imports
 from .serializer import *
@@ -74,19 +75,67 @@ class SentimentScoreView(APIView):
         return Response(response_data, status=HTTP_200_OK)
 
 
+class NetSpeculativeView(APIView):
+    def get(self, request):
+        current_year = timezone.now().year
+        data_entries = Data.objects.filter(
+            date_interval__date__year=current_year)
+
+        # Dictionary to hold aggregated data
+        response_data = defaultdict(list)
+
+        for entry in data_entries:
+            symbol = entry.symbol
+            week_start_date = entry.date_interval.date - \
+                timezone.timedelta(days=entry.date_interval.date.weekday())
+            week_start_str = week_start_date.strftime('%Y-%U')
+
+            # Find if the week already exists in response_data for this symbol
+            week_data = next(
+                (item for item in response_data[symbol] if item["date"] == week_start_str), None)
+
+            if week_data:
+                week_data["score"] += entry.net_speculative_position
+            else:
+                response_data[symbol].append(
+                    {"date": entry.date_interval.date.strftime("%y-%m-%d"), "score": entry.net_speculative_position})
+
+        # Convert defaultdict to a regular dict
+        response_data = dict(response_data)
+
+        return Response(response_data, status=HTTP_200_OK)
+
+
 class CrowdingPositionsView(APIView):
     def get(self, request):
         current_year = timezone.now().year
-        queryset = Data.objects.filter(date_interval__date__year=current_year)
-        crowding_data = queryset.annotate(month=TruncMonth('date_interval__date')).values(
-            'symbol', 'month').annotate(long=Sum('crowded_long_positions'), short=Sum('crowded_short_positions')).order_by('symbol', 'month')
+        data_entries = Data.objects.filter(
+            date_interval__date__year=current_year)
 
-        response_data = {}
-        for item in crowding_data:
-            symbol = item['symbol']
-            if symbol not in response_data:
-                response_data[symbol] = []
-            response_data[symbol].append({"date": item['month'].strftime(
-                '%b'), "long": item['long'], "short": item['short']})
+        # Dictionary to hold aggregated data
+        response_data = defaultdict(list)
+
+        for entry in data_entries:
+            symbol = entry.symbol
+            week_start_date = entry.date_interval.date - \
+                timezone.timedelta(days=entry.date_interval.date.weekday())
+            week_start_str = week_start_date.strftime('%Y-%U')
+
+            # Find if the week already exists in response_data for this symbol
+            week_data = next(
+                (item for item in response_data[symbol] if item["date"] == week_start_str), None)
+
+            if week_data:
+                week_data["long"] += entry.crowded_long_positions
+                week_data["short"] += entry.crowded_short_positions
+            else:
+                response_data[symbol].append({
+                    "date": entry.date_interval.date.strftime("%y-%m-%d"),
+                    "long": entry.crowded_long_positions,
+                    "short": entry.crowded_short_positions
+                })
+
+        # Convert defaultdict to a regular dict
+        response_data = dict(response_data)
 
         return Response(response_data, status=HTTP_200_OK)
