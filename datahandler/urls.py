@@ -16,5 +16,9 @@ urlpatterns = [
     path('token', CustomTokenObtain.as_view(), name='token_obtain_pair'),
     path('token/refresh', TokenRefreshView.as_view(), name='token_refresh'),
     path('session', TestSession.as_view()),
-    path("register", Register.as_view())
+    path("register", Register.as_view()),
+    path('sentiment_scores', SentimentScoreView.as_view(),
+         name='sentiment-scores'),
+    path('crowding_positions', CrowdingPositionsView.as_view(),
+         name='crowding-positions'),
 ]
