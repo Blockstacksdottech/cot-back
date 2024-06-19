@@ -2,13 +2,28 @@ import cot_reports as cot
 import pandas as pd
 import numpy as np
 import json
-from .models import DateInterval, Data
+from .models import DateInterval, Data, GeneralData
 from django.utils.timezone import make_aware
+
+symbol_mapping = {
+    'USD INDEX - ICE FUTURES U.S.': 'USD',
+    'EURO FX - CHICAGO MERCANTILE EXCHANGE': 'EURUSD',
+    'GOLD - COMMODITY EXCHANGE INC.': 'GOLD',
+    'BRITISH POUND - CHICAGO MERCANTILE EXCHANGE': 'GBP',
+    'JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE': 'JPYDEX',
+    'EURO FX/BRITISH POUND XRATE - CHICAGO MERCANTILE EXCHANGE': 'EURGBP',
+    'CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE': 'CAD',
+    'SWISS FRANC - CHICAGO MERCANTILE EXCHANGE': 'CHF',
+    'NZ DOLLAR - CHICAGO MERCANTILE EXCHANGE': 'NZDUSD',
+    'MEXICAN PESO - CHICAGO MERCANTILE EXCHANGE': 'MXNP'
+}
 
 
 def filter_tff_df(final_data):
     # Filter the TFF report
     tff_report = final_data.copy()
+    tff_report = tff_report[tff_report['Market_and_Exchange_Names'].isin(
+        symbol_mapping.keys())].copy()
     important_columns_tff = [
         'Market_and_Exchange_Names',
         'Report_Date_as_YYYY-MM-DD',
@@ -38,8 +53,8 @@ def filter_tff_df(final_data):
 
     # Filter the dataframe
     filtered_tff_df = tff_report[important_columns_tff]
-    filtered_tff_df["Symbol"] = filtered_tff_df['Market_and_Exchange_Names'].str.split(
-        " - ").str[0]
+    filtered_tff_df['Symbol'] = filtered_tff_df['Market_and_Exchange_Names'].map(
+        symbol_mapping)
     return filtered_tff_df
 
 
@@ -48,78 +63,55 @@ def analyze_tff_df(tff_df):
     tff_df['Report_Date_as_YYYY-MM-DD'] = pd.to_datetime(
         tff_df['Report_Date_as_YYYY-MM-DD'])
 
-    # Calculate Net Positions
-    tff_df['Net_Dealer_Positions'] = tff_df['Dealer_Positions_Long_All'] - \
-        tff_df['Dealer_Positions_Short_All']
-    tff_df['Net_Asset_Mgr_Positions'] = tff_df['Asset_Mgr_Positions_Long_All'] - \
-        tff_df['Asset_Mgr_Positions_Short_All']
-    tff_df['Net_Lev_Money_Positions'] = tff_df['Lev_Money_Positions_Long_All'] - \
-        tff_df['Lev_Money_Positions_Short_All']
-    tff_df['Net_Other_Rept_Positions'] = tff_df['Other_Rept_Positions_Long_All'] - \
-        tff_df['Other_Rept_Positions_Short_All']
-    tff_df['Net_NonRept_Positions'] = tff_df['NonRept_Positions_Long_All'] - \
-        tff_df['NonRept_Positions_Short_All']
+    # Sort by date to ensure correct calculations
+    tff_df = tff_df.sort_values(by='Report_Date_as_YYYY-MM-DD')
 
-    # Calculate Sentiment Score
-    tff_df['Sentiment_Score'] = (tff_df['Net_Dealer_Positions'] +
-                                 tff_df['Net_Asset_Mgr_Positions'] +
-                                 tff_df['Net_Lev_Money_Positions'] +
-                                 tff_df['Net_Other_Rept_Positions'] +
-                                 tff_df['Net_NonRept_Positions']) / tff_df['Open_Interest_All']
+    # Calculate total positions and percentages for commercial and non-commercial
+    tff_df['Comm_Long'] = tff_df['Dealer_Positions_Long_All']
+    tff_df['Comm_Short'] = tff_df['Dealer_Positions_Short_All']
+    tff_df['Comm_Total'] = tff_df['Comm_Long'] + tff_df['Comm_Short']
+    tff_df['Comm_Long_%'] = (tff_df['Comm_Long'] / tff_df['Comm_Total']) * 100
+    tff_df['Comm_Short_%'] = (
+        tff_df['Comm_Short'] / tff_df['Comm_Total']) * 100
+    tff_df['Comm_Net_Position'] = tff_df['Comm_Long'] - tff_df['Comm_Short']
 
-    # Calculate 7-Day Moving Average of Sentiment Score
-    tff_df['Sentiment_7Day_MA'] = tff_df['Sentiment_Score'].rolling(
-        window=7).mean()
+    tff_df['NonComm_Long'] = tff_df['Lev_Money_Positions_Long_All']
+    tff_df['NonComm_Short'] = tff_df['Lev_Money_Positions_Short_All']
+    tff_df['NonComm_Total'] = tff_df['NonComm_Long'] + tff_df['NonComm_Short']
+    tff_df['NonComm_Long_%'] = (
+        tff_df['NonComm_Long'] / tff_df['NonComm_Total']) * 100
+    tff_df['NonComm_Short_%'] = (
+        tff_df['NonComm_Short'] / tff_df['NonComm_Total']) * 100
+    tff_df['NonComm_Net_Position'] = tff_df['NonComm_Long'] - \
+        tff_df['NonComm_Short']
 
-    # Define Buy/Sell Signal Thresholds (adjusted for small values)
-    mean_sentiment_score = tff_df['Sentiment_Score'].mean()
-    std_sentiment_score = tff_df['Sentiment_Score'].std()
+    # Calculate differences compared to the previous week
+    tff_df['Comm_Long_Change'] = tff_df['Comm_Long'].diff()
+    tff_df['Comm_Short_Change'] = tff_df['Comm_Short'].diff()
+    tff_df['Comm_Net_Position_Change'] = tff_df['Comm_Net_Position'].diff()
 
-    buy_threshold = mean_sentiment_score + 2 * std_sentiment_score
-    sell_threshold = mean_sentiment_score - 2 * std_sentiment_score
+    tff_df['NonComm_Long_Change'] = tff_df['NonComm_Long'].diff()
+    tff_df['NonComm_Short_Change'] = tff_df['NonComm_Short'].diff()
+    tff_df['NonComm_Net_Position_Change'] = tff_df['NonComm_Net_Position'].diff()
 
-    # Calculate Buy/Sell Signals
-    tff_df['Buy_Signal'] = np.where(
-        tff_df['Sentiment_Score'] > buy_threshold, 1, 0)
-    tff_df['Sell_Signal'] = np.where(
-        tff_df['Sentiment_Score'] < sell_threshold, 1, 0)
-    tff_df['Decision'] = np.where(tff_df['Buy_Signal'] == 1, 'Buy',
-                                  np.where(tff_df['Sell_Signal'] == 1, 'Sell', 'Neutral'))
+    tff_df['Comm_Long_Change_%'] = (
+        tff_df['Comm_Long_Change'] / tff_df['Comm_Long'].shift(1)) * 100
+    tff_df['Comm_Short_Change_%'] = (
+        tff_df['Comm_Short_Change'] / tff_df['Comm_Short'].shift(1)) * 100
+    tff_df['NonComm_Long_Change_%'] = (
+        tff_df['NonComm_Long_Change'] / tff_df['NonComm_Long'].shift(1)) * 100
+    tff_df['NonComm_Short_Change_%'] = (
+        tff_df['NonComm_Short_Change'] / tff_df['NonComm_Short'].shift(1)) * 100
 
-    # Calculate crowded positions
-    tff_df['Crowded_Long_Positions'] = tff_df['Conc_Gross_LE_4_TDR_Long_All'] + \
-        tff_df['Conc_Gross_LE_8_TDR_Long_All']
-    tff_df['Crowded_Short_Positions'] = tff_df['Conc_Gross_LE_4_TDR_Short_All'] + \
-        tff_df['Conc_Gross_LE_8_TDR_Short_All']
+    # Determine sentiment for commercial and non-commercial positions
+    tff_df['Comm_Sentiment'] = np.where(
+        tff_df['Comm_Net_Position'] > 0, 'Long Dominated', 'Short Dominated')
+    tff_df['NonComm_Sentiment'] = np.where(
+        tff_df['NonComm_Net_Position'] > 0, 'Long Dominated', 'Short Dominated')
 
-    # Calculate Speculative Positioning Index (SPI)
-    tff_df['Speculative_Positioning_Index'] = (
-        tff_df['Lev_Money_Positions_Long_All'] - tff_df['Lev_Money_Positions_Short_All']) / tff_df['Open_Interest_All']
-
-    # Calculate Commitment of Traders Ratio (COT Ratio)
-    tff_df['COT_Ratio'] = (tff_df['Dealer_Positions_Long_All'] + tff_df['Dealer_Positions_Short_All']) / \
-        (tff_df['Asset_Mgr_Positions_Long_All'] +
-         tff_df['Asset_Mgr_Positions_Short_All'])
-
-    # Calculate Net Speculative Position
-    tff_df['Net_Speculative_Position'] = tff_df['Lev_Money_Positions_Long_All'] - \
-        tff_df['Lev_Money_Positions_Short_All']
-
-    # Calculate Commercial/Non-Commercial Positioning Ratio
-    tff_df['Comm_NonComm_Ratio'] = (tff_df['Dealer_Positions_Long_All'] + tff_df['Dealer_Positions_Short_All']) / (
-        tff_df['Lev_Money_Positions_Long_All'] + tff_df['Lev_Money_Positions_Short_All'])
-
-    # Calculate Percentage of Open Interest by Speculative Positions
-    tff_df['Pct_OI_Spec_Positions'] = ((tff_df['Lev_Money_Positions_Long_All'] +
-                                       tff_df['Lev_Money_Positions_Short_All']) / tff_df['Open_Interest_All']) * 100
-
-    # Calculate overall decision and sentiment
-    overall_sentiment_threshold = 0.1
-    tff_df['Overall_Sentiment'] = tff_df['Sentiment_Score'].mean()
-    tff_df['Overall_Decision'] = np.where(tff_df['Overall_Sentiment'] > overall_sentiment_threshold, 'Buy',
-                                          np.where(tff_df['Overall_Sentiment'] < -overall_sentiment_threshold, 'Sell', 'Neutral'))
-
+    # Fill NaN values with 0
     tff_df = tff_df.fillna(0)
+
     # Display results
     return tff_df
 
@@ -189,31 +181,84 @@ def save_to_django_models(symbol_dataframes):
 
         for data in data_list:
             try:
-                if not data['COT_Ratio']:
-                    data['COT_Ratio'] = 0
                 date = data['date']
+                symbol = data["Symbol"]
                 date_obj = make_aware(pd.to_datetime(date, unit='ms'))
-                print(f"Date is {date_obj}")
+
                 date_interval, created = DateInterval.objects.get_or_create(
                     date=date_obj)
                 date_interval.save()
 
-                data = Data.objects.create(
+                if GeneralData.objects.filter(date_interval=date_interval, symbol=symbol).exists():
+                    print(
+                        f"Entry for {symbol} on {date_obj} already exists. Skipping...")
+                    continue
+
+                # Ensure all necessary fields are available and handle edge cases
+                comm_long = data.get('Comm_Long', 0) or 0
+                comm_short = data.get('Comm_Short', 0) or 0
+                comm_total = data.get('Comm_Total', 0) or 0
+                comm_long_pct = data.get('Comm_Long_%', 0) or 0
+                comm_short_pct = data.get('Comm_Short_%', 0) or 0
+                comm_net_position = data.get('Comm_Net_Position', 0) or 0
+                comm_long_change = data.get('Comm_Long_Change', 0) or 0
+                comm_short_change = data.get('Comm_Short_Change', 0) or 0
+                comm_net_position_change = data.get(
+                    'Comm_Net_Position_Change', 0) or 0
+                comm_long_change_pct = data.get('Comm_Long_Change_%', 0) or 0
+                comm_short_change_pct = data.get('Comm_Short_Change_%', 0) or 0
+                comm_sentiment = data.get('Comm_Sentiment', 'Neutral')
+                noncomm_long = data.get('NonComm_Long', 0) or 0
+                noncomm_short = data.get('NonComm_Short', 0) or 0
+                noncomm_total = data.get('NonComm_Total', 0) or 0
+                noncomm_long_pct = data.get('NonComm_Long_%', 0) or 0
+                noncomm_short_pct = data.get('NonComm_Short_%', 0) or 0
+                noncomm_net_position = data.get('NonComm_Net_Position', 0) or 0
+                noncomm_long_change = data.get('NonComm_Long_Change', 0) or 0
+                noncomm_short_change = data.get('NonComm_Short_Change', 0) or 0
+                noncomm_net_position_change = data.get(
+                    'NonComm_Net_Position_Change', 0) or 0
+                noncomm_long_change_pct = data.get(
+                    'NonComm_Long_Change_%', 0) or 0
+                noncomm_short_change_pct = data.get(
+                    'NonComm_Short_Change_%', 0) or 0
+                noncomm_sentiment = data.get('NonComm_Sentiment', 'Neutral')
+
+                # Calculate percentage change for comm_long_change_pct if not provided
+                if comm_long != 0:
+                    comm_long_change_pct = (comm_long_change / comm_long) * 100
+                else:
+                    comm_long_change_pct = 0
+
+                general_data = GeneralData.objects.create(
                     date_interval=date_interval,
-                    symbol=data['Symbol'],
-                    decision=data['Decision'],
-                    sentiment_score=data['Sentiment_Score'],
-                    crowded_long_positions=data['Crowded_Long_Positions'],
-                    crowded_short_positions=data['Crowded_Short_Positions'],
-                    speculative_positioning_index=data['Speculative_Positioning_Index'],
-                    cot_ratio=data['COT_Ratio'],
-                    net_speculative_position=data['Net_Speculative_Position'],
-                    comm_noncomm_ratio=data['Comm_NonComm_Ratio'],
-                    pct_oi_spec_positions=data['Pct_OI_Spec_Positions'],
-                    overall_decision=data['Overall_Decision'],
-                    overall_sentiment=data['Overall_Sentiment']
+                    symbol=symbol,
+                    comm_long=comm_long,
+                    comm_short=comm_short,
+                    comm_total=comm_total,
+                    comm_long_pct=comm_long_pct,
+                    comm_short_pct=comm_short_pct,
+                    comm_net_position=comm_net_position,
+                    comm_long_change=comm_long_change,
+                    comm_short_change=comm_short_change,
+                    comm_net_position_change=comm_net_position_change,
+                    comm_long_change_pct=comm_long_change_pct,
+                    comm_short_change_pct=comm_short_change_pct,
+                    comm_sentiment=comm_sentiment,
+                    noncomm_long=noncomm_long,
+                    noncomm_short=noncomm_short,
+                    noncomm_total=noncomm_total,
+                    noncomm_long_pct=noncomm_long_pct,
+                    noncomm_short_pct=noncomm_short_pct,
+                    noncomm_net_position=noncomm_net_position,
+                    noncomm_long_change=noncomm_long_change,
+                    noncomm_short_change=noncomm_short_change,
+                    noncomm_net_position_change=noncomm_net_position_change,
+                    noncomm_long_change_pct=noncomm_long_change_pct,
+                    noncomm_short_change_pct=noncomm_short_change_pct,
+                    noncomm_sentiment=noncomm_sentiment
                 )
-                data.save()
+                general_data.save()
                 print("saved")
             except Exception as e:
                 print(e)
@@ -240,19 +285,40 @@ def execute():
     final_data = main(start_year, end_year)
     analyzed_data = filter_and_analyze_tff_data(final_data[0])
     important_data = analyzed_data[[
-        "date",
+        'date',  # Date of the report
         "Symbol",
-        "Decision",
-        'Sentiment_Score',
-        'Crowded_Long_Positions',
-        'Crowded_Short_Positions',
-        'Speculative_Positioning_Index',
-        'COT_Ratio',
-        'Net_Speculative_Position',
-        'Comm_NonComm_Ratio',
-        'Pct_OI_Spec_Positions',
-        'Overall_Decision',
-        'Overall_Sentiment'
+        'Comm_Long',  # Commercial long positions
+        'Comm_Short',  # Commercial short positions
+        'Comm_Total',  # Total commercial positions
+        'Comm_Long_%',  # Percentage of commercial long positions
+        'Comm_Short_%',  # Percentage of commercial short positions
+        'Comm_Net_Position',  # Net commercial positions
+        'Comm_Long_Change',  # Change in commercial long positions compared to last week
+        'Comm_Short_Change',  # Change in commercial short positions compared to last week
+        # Change in net commercial positions compared to last week
+        'Comm_Net_Position_Change',
+        # Percentage change in commercial long positions compared to last week
+        'Comm_Long_Change_%',
+        # Percentage change in commercial short positions compared to last week
+        'Comm_Short_Change_%',
+        # Sentiment for commercial positions (Long Dominated/Short Dominated)
+        'Comm_Sentiment',
+        'NonComm_Long',  # Non-commercial long positions
+        'NonComm_Short',  # Non-commercial short positions
+        'NonComm_Total',  # Total non-commercial positions
+        'NonComm_Long_%',  # Percentage of non-commercial long positions
+        'NonComm_Short_%',  # Percentage of non-commercial short positions
+        'NonComm_Net_Position',  # Net non-commercial positions
+        'NonComm_Long_Change',  # Change in non-commercial long positions compared to last week
+        'NonComm_Short_Change',  # Change in non-commercial short positions compared to last week
+        # Change in net non-commercial positions compared to last week
+        'NonComm_Net_Position_Change',
+        # Percentage change in non-commercial long positions compared to last week
+        'NonComm_Long_Change_%',
+        # Percentage change in non-commercial short positions compared to last week
+        'NonComm_Short_Change_%',
+        # Sentiment for non-commercial positions (Long Dominated/Short Dominated)
+        'NonComm_Sentiment'
     ]]
     symbol_dataframes = regroup_by_symbol(important_data)
     save_to_django_models(symbol_dataframes)

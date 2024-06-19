@@ -78,7 +78,7 @@ class SentimentScoreView(APIView):
 class NetSpeculativeView(APIView):
     def get(self, request):
         current_year = timezone.now().year
-        data_entries = Data.objects.filter(
+        data_entries = GeneralData.objects.filter(
             date_interval__date__year=current_year)
 
         # Dictionary to hold aggregated data
@@ -95,10 +95,10 @@ class NetSpeculativeView(APIView):
                 (item for item in response_data[symbol] if item["date"] == week_start_str), None)
 
             if week_data:
-                week_data["score"] += entry.net_speculative_position
+                week_data["score"] += entry.noncomm_net_position
             else:
                 response_data[symbol].append(
-                    {"date": entry.date_interval.date.strftime("%y-%m-%d"), "score": entry.net_speculative_position})
+                    {"date": entry.date_interval.date.strftime("%y-%m-%d"), "score": entry.noncomm_net_position})
 
         # Convert defaultdict to a regular dict
         response_data = dict(response_data)
@@ -109,7 +109,7 @@ class NetSpeculativeView(APIView):
 class CrowdingPositionsView(APIView):
     def get(self, request):
         current_year = timezone.now().year
-        data_entries = Data.objects.filter(
+        data_entries = GeneralData.objects.filter(
             date_interval__date__year=current_year)
 
         # Dictionary to hold aggregated data
@@ -131,8 +131,8 @@ class CrowdingPositionsView(APIView):
             else:
                 response_data[symbol].append({
                     "date": entry.date_interval.date.strftime("%y-%m-%d"),
-                    "long": entry.crowded_long_positions,
-                    "short": entry.crowded_short_positions
+                    "long": entry.noncomm_long,
+                    "short": entry.noncomm_short
                 })
 
         # Convert defaultdict to a regular dict

@@ -36,3 +36,35 @@ class Data(models.Model):
 
     def __str__(self):
         return f"{self.symbol} - {self.date_interval}"
+
+
+class GeneralData(models.Model):
+    date_interval = models.ForeignKey(DateInterval, on_delete=models.CASCADE)
+    symbol = models.CharField(max_length=100)
+    comm_long = models.FloatField()
+    comm_short = models.FloatField()
+    comm_total = models.FloatField()
+    comm_long_pct = models.FloatField()
+    comm_short_pct = models.FloatField()
+    comm_net_position = models.FloatField()
+    comm_long_change = models.FloatField()
+    comm_short_change = models.FloatField()
+    comm_net_position_change = models.FloatField()
+    comm_long_change_pct = models.FloatField()
+    comm_short_change_pct = models.FloatField()
+    comm_sentiment = models.CharField(max_length=50)
+    noncomm_long = models.FloatField()
+    noncomm_short = models.FloatField()
+    noncomm_total = models.FloatField()
+    noncomm_long_pct = models.FloatField()
+    noncomm_short_pct = models.FloatField()
+    noncomm_net_position = models.FloatField()
+    noncomm_long_change = models.FloatField()
+    noncomm_short_change = models.FloatField()
+    noncomm_net_position_change = models.FloatField()
+    noncomm_long_change_pct = models.FloatField()
+    noncomm_short_change_pct = models.FloatField()
+    noncomm_sentiment = models.CharField(max_length=50)
+
+    def __str__(self):
+        return f"{self.symbol} - {self.date_interval}"

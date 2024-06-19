@@ -1,5 +1,5 @@
 from .models import (
-    CustomUser, DateInterval, Data
+    CustomUser, DateInterval, Data, GeneralData
 )
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -103,9 +103,10 @@ class DateSerializer(serializers.ModelSerializer):
         # d'entités dans la liste
 
         # On applique le filtre sur notre queryset pour n'avoir que les produits actifs
-        queryset = Data.objects.filter(date_interval=instance)
+        queryset = GeneralData.objects.filter(date_interval=instance)
+        print(queryset)
         # Le serializer est créé avec le queryset défini et toujours défini en tant que many=True
-        serializer = DataSerialzier(queryset, many=True)
+        serializer = GeneralDataSerializer(queryset, many=True)
         # la propriété '.data' est le rendu de notre serializer que nous retournons ici
         return serializer.data
 
@@ -113,6 +114,12 @@ class DateSerializer(serializers.ModelSerializer):
 class DataSerialzier(ModelSerializer):
     class Meta:
         model = Data
+        fields = "__all__"
+
+
+class GeneralDataSerializer(ModelSerializer):
+    class Meta:
+        model = GeneralData
         fields = "__all__"
 
 
