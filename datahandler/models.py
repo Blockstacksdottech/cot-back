@@ -68,3 +68,23 @@ class GeneralData(models.Model):
 
     def __str__(self):
         return f"{self.symbol} - {self.date_interval}"
+
+
+class ProcessedData(models.Model):
+    date_interval = models.ForeignKey(DateInterval, on_delete=models.CASCADE)
+    pair = models.CharField(max_length=20)
+    base_long = models.FloatField()
+    base_short = models.FloatField()
+    base_net_position = models.FloatField()
+    quote_long = models.FloatField()
+    quote_short = models.FloatField()
+    quote_net_position = models.FloatField()
+    pair_long = models.FloatField()
+    pair_short = models.FloatField()
+    pair_net_position = models.FloatField()
+    pct_change = models.FloatField()
+    five_week_change = models.FloatField()
+    sentiment = models.CharField(max_length=20)
+
+    def __str__(self):
+        return f"{self.pair} - {self.date_interval}"
