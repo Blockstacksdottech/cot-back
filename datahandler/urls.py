@@ -23,4 +23,8 @@ urlpatterns = [
          name='net-speculative'),
     path('crowding_positions', CrowdingPositionsView.as_view(),
          name='crowding-positions'),
+    path('net_comm_speculative', NetSpeculativeCommView.as_view(),
+         name='net-speculative'),
+    path('crowding_comm_positions', CrowdingPositionsCommView.as_view(),
+         name='crowding-positions'),
 ]

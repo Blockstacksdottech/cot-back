@@ -139,3 +139,101 @@ class CrowdingPositionsView(APIView):
         response_data = dict(response_data)
 
         return Response(response_data, status=HTTP_200_OK)
+
+
+class NetSpeculativeCommView(APIView):
+    def get(self, request):
+        current_year = timezone.now().year
+        data_entries = ProcessedData.objects.filter(
+            date_interval__date__year=current_year)
+
+        # Dictionary to hold aggregated data
+        response_data = defaultdict(list)
+
+        for entry in data_entries:
+            symbol = entry.pair
+            week_start_date = entry.date_interval.date - \
+                timezone.timedelta(days=entry.date_interval.date.weekday())
+            week_start_str = week_start_date.strftime('%Y-%U')
+
+            # Find if the week already exists in response_data for this symbol
+            week_data = next(
+                (item for item in response_data[symbol] if item["date"] == week_start_str), None)
+
+            quote_currency = entry.pair.split("/")[-1]
+            base_currency = entry.pair.split("/")[0]
+            if quote_currency == "USD":
+                pair_long = entry.base_comm_long
+                pair_short = entry.base_comm_short
+                pair_net_position = entry.base_comm_net_position
+            elif base_currency == "USD":
+                pair_long = entry.quote_comm_short
+                pair_short = entry.quote_comm_long
+                pair_net_position = -entry.quote_comm_net_position
+            else:
+                pair_long = entry.base_comm_long
+                pair_short = entry.base_comm_short
+                pair_net_position = entry.base_comm_net_position
+
+            score = pair_net_position
+
+            if week_data:
+                week_data["score"] += score
+            else:
+                response_data[symbol].append(
+                    {"date": entry.date_interval.date.strftime("%y-%m-%d"), "score": score})
+
+        # Convert defaultdict to a regular dict
+        response_data = dict(response_data)
+
+        return Response(response_data, status=HTTP_200_OK)
+
+
+class CrowdingPositionsCommView(APIView):
+    def get(self, request):
+        current_year = timezone.now().year
+        data_entries = ProcessedData.objects.filter(
+            date_interval__date__year=current_year)
+
+        # Dictionary to hold aggregated data
+        response_data = defaultdict(list)
+
+        for entry in data_entries:
+            symbol = entry.pair
+            week_start_date = entry.date_interval.date - \
+                timezone.timedelta(days=entry.date_interval.date.weekday())
+            week_start_str = week_start_date.strftime('%Y-%U')
+
+            # Find if the week already exists in response_data for this symbol
+            week_data = next(
+                (item for item in response_data[symbol] if item["date"] == week_start_str), None)
+
+            quote_currency = entry.pair.split("/")[-1]
+            base_currency = entry.pair.split("/")[0]
+            if quote_currency == "USD":
+                pair_long = entry.base_comm_long
+                pair_short = entry.base_comm_short
+                pair_net_position = entry.base_comm_net_position
+            elif base_currency == "USD":
+                pair_long = entry.quote_comm_short
+                pair_short = entry.quote_comm_long
+                pair_net_position = -entry.quote_comm_net_position
+            else:
+                pair_long = entry.base_comm_long
+                pair_short = entry.base_comm_short
+                pair_net_position = entry.base_comm_net_position
+
+            if week_data:
+                week_data["long"] += pair_long
+                week_data["short"] += pair_short
+            else:
+                response_data[symbol].append({
+                    "date": entry.date_interval.date.strftime("%y-%m-%d"),
+                    "long": pair_long,
+                    "short": pair_short
+                })
+
+        # Convert defaultdict to a regular dict
+        response_data = dict(response_data)
+
+        return Response(response_data, status=HTTP_200_OK)
