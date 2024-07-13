@@ -106,11 +106,30 @@ WSGI_APPLICATION = 'api.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
-
-DATABASES = {
-    'default': {
+"""
+{
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
+    }
+
+
+
+
+"""
+
+DATABASES = {
+    'default':
+    {
+        # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
+        'ENGINE': 'django.db.backends.psycopg2',
+        # Or path to database file if using sqlite3.
+        'NAME': 'cotdb',
+        # The following settings are not used with sqlite3:
+        'USER': 'cotuser',
+        'PASSWORD': 'cotpass123',
+        # Empty for localhost through domain sockets or '127.0.0.1' for localhost through TCP.
+        'HOST': '',
+        'PORT': '',                      # Set to empty string for default.
     }
 }
 
