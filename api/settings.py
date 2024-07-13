@@ -28,6 +28,7 @@ SECRET_KEY = 'django-insecure-h&y1423@xer76*1x=_s8a0_-a=l&v9itxcifs=j^e_8eks&xon
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
+CSRF_TRUSTED_ORIGINS = ['http://194.164.72.71/']
 ALLOWED_HOSTS = []
 
 AUTH_USER_MODEL = 'datahandler.CustomUser'
