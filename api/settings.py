@@ -125,7 +125,7 @@ DATABASES = {
         # Or path to database file if using sqlite3.
         'NAME': 'cotdb',
         # The following settings are not used with sqlite3:
-        'USER': 'postgres',
+        'USER': 'cotuser',
         'PASSWORD': 'cotpass123',
         # Empty for localhost through domain sockets or '127.0.0.1' for localhost through TCP.
         'HOST': '',
