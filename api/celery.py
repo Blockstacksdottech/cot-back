@@ -22,7 +22,7 @@ app.conf.beat_schedule = {
     # Executes every Monday morning at 7:30 a.m.
     'test-print': {
         'task': 'datahandler.tasks.fetch_data',
-        'schedule': crontab(hour=0, minute=15),
+        'schedule': crontab(hour=0, minute=0),
         'args': (),
     },
 }
