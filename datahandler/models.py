@@ -12,6 +12,30 @@ class CustomUser(AbstractUser):
         return self.username
 
 
+class UserDetails(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    full_name = models.CharField(max_length=255, default="")
+    mobile = models.CharField(max_length=20, default="")
+    address = models.TextField(default="")
+    city = models.CharField(max_length=100, default="")
+    state = models.CharField(max_length=100, default="")
+    country = models.CharField(max_length=100, default="")
+    zip_code = models.CharField(max_length=20, default="")
+
+    def __str__(self):
+        return self.user.username
+
+
+class UserImage(models.Model):
+    user = models.OneToOneField(
+        CustomUser, on_delete=models.CASCADE)
+    profile_picture = models.ImageField(
+        upload_to='profile_pictures/', null=True, blank=True)
+
+    def __str__(self):
+        return self.user.username
+
+
 class DateInterval(models.Model):
     date = models.DateTimeField()
 
@@ -72,7 +96,7 @@ class GeneralData(models.Model):
 
 class ProcessedData(models.Model):
     date_interval = models.ForeignKey(DateInterval, on_delete=models.CASCADE)
-    pair = models.CharField(max_length=20)
+    pair = models.CharField(max_length=10)
     base_long = models.FloatField(default=0)
     base_short = models.FloatField(default=0)
     base_net_position = models.FloatField(default=0)
@@ -94,17 +118,88 @@ class ProcessedData(models.Model):
     pair_long = models.FloatField(default=0)
     pair_short = models.FloatField(default=0)
     pair_net_position = models.FloatField(default=0)
-    pct_change = models.FloatField(default=0)
-    two_week_change = models.FloatField(default=0)
-    three_week_change = models.FloatField(default=0)
-    four_week_change = models.FloatField(default=0)
-    five_week_change = models.FloatField(default=0)
-    six_week_change = models.FloatField(default=0)
-    seven_week_change = models.FloatField(default=0)
-    eight_week_change = models.FloatField(default=0)
-    nine_week_change = models.FloatField(default=0)
-    ten_week_change = models.FloatField(default=0)
-    sentiment = models.CharField(max_length=20)
+
+    # Percentage change fields
+    pair_pct_change = models.FloatField(default=0)
+    pair_comm_pct_change = models.FloatField(default=0)
+    pair_2_week_change = models.FloatField(default=0)
+    pair_3_week_change = models.FloatField(default=0)
+    pair_4_week_change = models.FloatField(default=0)
+    pair_5_week_change = models.FloatField(default=0)
+    pair_6_week_change = models.FloatField(default=0)
+    pair_7_week_change = models.FloatField(default=0)
+    pair_8_week_change = models.FloatField(default=0)
+    pair_9_week_change = models.FloatField(default=0)
+    pair_10_week_change = models.FloatField(default=0)
+    pair_comm_2_week_change = models.FloatField(default=0)
+    pair_comm_3_week_change = models.FloatField(default=0)
+    pair_comm_4_week_change = models.FloatField(default=0)
+    pair_comm_5_week_change = models.FloatField(default=0)
+    pair_comm_6_week_change = models.FloatField(default=0)
+    pair_comm_7_week_change = models.FloatField(default=0)
+    pair_comm_8_week_change = models.FloatField(default=0)
+    pair_comm_9_week_change = models.FloatField(default=0)
+    pair_comm_10_week_change = models.FloatField(default=0)
+
+    # Open interest fields
+    pair_pct_change_open_interest = models.FloatField(default=0)
+    pair_2_week_change_open_interest = models.FloatField(default=0)
+    pair_3_week_change_open_interest = models.FloatField(default=0)
+    pair_4_week_change_open_interest = models.FloatField(default=0)
+    pair_5_week_change_open_interest = models.FloatField(default=0)
+    pair_6_week_change_open_interest = models.FloatField(default=0)
+    pair_7_week_change_open_interest = models.FloatField(default=0)
+    pair_8_week_change_open_interest = models.FloatField(default=0)
+    pair_9_week_change_open_interest = models.FloatField(default=0)
+    pair_10_week_change_open_interest = models.FloatField(default=0)
+
+    # Noncommercial diff absolute fields
+    noncomm_diff_absolute_long = models.FloatField(default=0)
+    noncomm_diff_absolute_short = models.FloatField(default=0)
+    noncomm_2_diff_absolute_long = models.FloatField(default=0)
+    noncomm_3_diff_absolute_long = models.FloatField(default=0)
+    noncomm_4_diff_absolute_long = models.FloatField(default=0)
+    noncomm_5_diff_absolute_long = models.FloatField(default=0)
+    noncomm_6_diff_absolute_long = models.FloatField(default=0)
+    noncomm_7_diff_absolute_long = models.FloatField(default=0)
+    noncomm_8_diff_absolute_long = models.FloatField(default=0)
+    noncomm_9_diff_absolute_long = models.FloatField(default=0)
+    noncomm_10_diff_absolute_long = models.FloatField(default=0)
+    noncomm_2_diff_absolute_short = models.FloatField(default=0)
+    noncomm_3_diff_absolute_short = models.FloatField(default=0)
+    noncomm_4_diff_absolute_short = models.FloatField(default=0)
+    noncomm_5_diff_absolute_short = models.FloatField(default=0)
+    noncomm_6_diff_absolute_short = models.FloatField(default=0)
+    noncomm_7_diff_absolute_short = models.FloatField(default=0)
+    noncomm_8_diff_absolute_short = models.FloatField(default=0)
+    noncomm_9_diff_absolute_short = models.FloatField(default=0)
+    noncomm_10_diff_absolute_short = models.FloatField(default=0)
+
+    # Commercial diff absolute fields
+    comm_diff_absolute_long = models.FloatField(default=0)
+    comm_diff_absolute_short = models.FloatField(default=0)
+    comm_2_diff_absolute_long = models.FloatField(default=0)
+    comm_3_diff_absolute_long = models.FloatField(default=0)
+    comm_4_diff_absolute_long = models.FloatField(default=0)
+    comm_5_diff_absolute_long = models.FloatField(default=0)
+    comm_6_diff_absolute_long = models.FloatField(default=0)
+    comm_7_diff_absolute_long = models.FloatField(default=0)
+    comm_8_diff_absolute_long = models.FloatField(default=0)
+    comm_9_diff_absolute_long = models.FloatField(default=0)
+    comm_10_diff_absolute_long = models.FloatField(default=0)
+    comm_2_diff_absolute_short = models.FloatField(default=0)
+    comm_3_diff_absolute_short = models.FloatField(default=0)
+    comm_4_diff_absolute_short = models.FloatField(default=0)
+    comm_5_diff_absolute_short = models.FloatField(default=0)
+    comm_6_diff_absolute_short = models.FloatField(default=0)
+    comm_7_diff_absolute_short = models.FloatField(default=0)
+    comm_8_diff_absolute_short = models.FloatField(default=0)
+    comm_9_diff_absolute_short = models.FloatField(default=0)
+    comm_10_diff_absolute_short = models.FloatField(default=0)
+
+    # Extra fields
+    sentiment = models.CharField(max_length=50, default='Neutral')
+    is_contract = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"{self.pair} - {self.date_interval}"
+        return f"{self.pair} - {self.date_interval.date.strftime('%Y-%m-%d')}"

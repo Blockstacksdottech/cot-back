@@ -9,6 +9,7 @@ from rest_framework import routers
 
 router = routers.SimpleRouter()
 router.register("data", DataHandler, basename="data-handler")
+router.register("top", HomePairsView, basename="top pairs")
 
 
 urlpatterns = [
@@ -27,4 +28,14 @@ urlpatterns = [
          name='net-speculative'),
     path('crowding_comm_positions', CrowdingPositionsCommView.as_view(),
          name='crowding-positions'),
+    path("checkout", CustomCheckout.as_view(), name="checkout_demo"),
+    # new data endpoints
+    path("sentiment-data", SentimentData.as_view(), name="sentiment_data"),
+    path("change-data", ChangeData.as_view(), name="change_data"),
+    path("scanner-data", ScannerView.as_view(), name="scanner_data"),
+    # User
+    path('user-details', UserDetailsView.as_view(), name='user-details'),
+    path('user-image', UserImageView.as_view(), name='user-image'),
+    path("change-password", ChangePasswordView.as_view(),
+         name="change-password")
 ]

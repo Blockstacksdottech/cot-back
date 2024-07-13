@@ -11,6 +11,9 @@ https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+
+from decouple import config
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -28,7 +31,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 AUTH_USER_MODEL = 'datahandler.CustomUser'
-
+broker_url = 'redis://localhost:6379/0'
 
 # Application definition
 
@@ -42,7 +45,9 @@ INSTALLED_APPS = [
     'rest_framework',
     'corsheaders',
     'datahandler',
-    'rest_framework_simplejwt'
+    'rest_framework_simplejwt',
+    "drf_stripe",
+    "django_celery_beat"
 ]
 
 MIDDLEWARE = [
@@ -55,6 +60,15 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+DRF_STRIPE = {
+    "STRIPE_API_SECRET": config('DRF_STRIPE_STRIPE_API_SECRET'),
+    "STRIPE_WEBHOOK_SECRET": config('DRF_STRIPE_STRIPE_WEBHOOK_SECRET'),
+    "FRONT_END_BASE_URL": config('FRONT_END_BASE_URL', default='http://localhost:3000'),
+    "CHECKOUT_SUCCESS_URL_PATH": config('CHECKOUT_SUCCESS_URL_PATH', default='/cotscanner'),
+    "CHECKOUT_CANCEL_URL_PATH": config('CHECKOUT_CANCEL_URL_PATH', default='/joinus'),
+    # "NEW_USER_FREE_TRIAL_DAYS": 7
+}
 
 REST_FRAMEWORK = {
 
@@ -141,3 +155,10 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers.DatabaseScheduler'
+CELERY_BROKER_URL = 'redis://localhost:6379'
+
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')

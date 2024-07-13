@@ -1,5 +1,5 @@
 from .models import (
-    CustomUser, DateInterval, Data, GeneralData, ProcessedData
+    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage
 )
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -8,6 +8,26 @@ from rest_framework import exceptions, serializers
 from rest_framework.exceptions import ValidationError
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.settings import api_settings
+from drf_stripe.serializers import CheckoutRequestSerializer, StripeError
+from drf_stripe.stripe_api.checkout import stripe_api_create_checkout_session
+from .helper import get_or_create_stripe_user
+
+
+class CustomCheckoutSerializer(CheckoutRequestSerializer):
+    def validate(self, attrs):
+        print("validation here !!!!!!!!!!")
+        stripe_user = get_or_create_stripe_user(
+            user_id=self.context['request'].user.id)
+        try:
+            checkout_session = stripe_api_create_checkout_session(
+                customer_id=stripe_user.customer_id,
+                price_id=attrs['price_id'],
+                trial_end='auto' if stripe_user.subscription_items.count() == 0 else None
+            )
+            attrs['session_id'] = checkout_session['id']
+        except StripeError as e:
+            raise ValidationError(e.error)
+        return attrs
 
 
 class PasswordField(serializers.CharField):
@@ -87,6 +107,23 @@ class MyTokenObtainPairSerializer(MyTokenObtainSerializer):
         return data
 
 
+class UserDetailsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserDetails
+        fields = "__all__"
+
+
+class PasswordChangeSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True)
+
+
+class UserImageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserImage
+        fields = ['profile_picture']
+
+
 class DateSerializer(serializers.ModelSerializer):
 
     # En utilisant un `SerializerMethodField', il est nécessaire d'écrire une méthode
@@ -134,3 +171,125 @@ class UserSerializer(ModelSerializer):
         model = CustomUser
         fields = "__all__"
         extra_kwargs = {'password': {'write_only': True, 'required': True}}
+
+
+class HomeDateSerializer(ModelSerializer):
+    # En utilisant un `SerializerMethodField', il est nécessaire d'écrire une méthode
+    # nommée 'get_XXX' où XXX est le nom de l'attribut, ici 'products'
+    data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DateInterval
+        fields = "__all__"
+
+    def get_data(self, instance):
+        # Le paramètre 'instance' est l'instance de la catégorie consultée.
+        # Dans le cas d'une liste, cette méthode est appelée autant de fois qu'il y a
+        # d'entités dans la liste
+
+        # On applique le filtre sur notre queryset pour n'avoir que les produits actifs
+        queryset = ProcessedData.objects.filter(
+            date_interval=instance, is_contract=False)
+        # Le serializer est créé avec le queryset défini et toujours défini en tant que many=True
+        queryset = queryset if len(queryset) < 5 else queryset[:5]
+        serializer = HomePairChangeSerializer(queryset, many=True)
+        # la propriété '.data' est le rendu de notre serializer que nous retournons ici
+        return serializer.data
+
+
+class HomeDateAllSerializer(ModelSerializer):
+    # En utilisant un `SerializerMethodField', il est nécessaire d'écrire une méthode
+    # nommée 'get_XXX' où XXX est le nom de l'attribut, ici 'products'
+    data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DateInterval
+        fields = "__all__"
+
+    def get_data(self, instance):
+        # Le paramètre 'instance' est l'instance de la catégorie consultée.
+        # Dans le cas d'une liste, cette méthode est appelée autant de fois qu'il y a
+        # d'entités dans la liste
+
+        # On applique le filtre sur notre queryset pour n'avoir que les produits actifs
+        queryset = ProcessedData.objects.filter(
+            date_interval=instance)
+        # Le serializer est créé avec le queryset défini et toujours défini en tant que many=True
+        serializer = HomePairChangeSerializer(queryset, many=True)
+        # la propriété '.data' est le rendu de notre serializer que nous retournons ici
+        return serializer.data
+
+
+class HomePairChangeSerializer(ModelSerializer):
+    class Meta:
+        model = ProcessedData
+        fields = [
+            'pair',
+            'pair_pct_change',
+            'pair_comm_pct_change',
+            'pair_2_week_change',
+            'pair_3_week_change',
+            'pair_4_week_change',
+            'pair_5_week_change',
+            'pair_6_week_change',
+            'pair_7_week_change',
+            'pair_8_week_change',
+            'pair_9_week_change',
+            'pair_10_week_change'
+        ]
+
+
+class ScannerDateSerializer(ModelSerializer):
+    # En utilisant un `SerializerMethodField', il est nécessaire d'écrire une méthode
+    # nommée 'get_XXX' où XXX est le nom de l'attribut, ici 'products'
+    data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DateInterval
+        fields = "__all__"
+
+    def get_data(self, instance):
+        # Le paramètre 'instance' est l'instance de la catégorie consultée.
+        # Dans le cas d'une liste, cette méthode est appelée autant de fois qu'il y a
+        # d'entités dans la liste
+
+        # On applique le filtre sur notre queryset pour n'avoir que les produits actifs
+        queryset = ProcessedData.objects.filter(
+            date_interval=instance, is_contract=False)
+        # Le serializer est créé avec le queryset défini et toujours défini en tant que many=True
+        serializer = ScannerSerializer(queryset, many=True)
+        # la propriété '.data' est le rendu de notre serializer que nous retournons ici
+        return serializer.data
+
+
+class ScannerSerializer(ModelSerializer):
+    class Meta:
+        model = ProcessedData
+        fields = [
+            'pair',
+            'pair_pct_change',
+            'pair_comm_pct_change',
+            'pair_3_week_change',
+            'pair_5_week_change',
+            'pair_10_week_change',
+            'pair_comm_3_week_change',
+            'pair_comm_5_week_change',
+            'pair_comm_10_week_change',
+            'base_long',
+            'base_short',
+            'base_net_position',
+            'quote_long',
+            'quote_short',
+            'base_comm_long',
+            'base_comm_short',
+            'quote_comm_long',
+            'quote_comm_short',
+            'noncomm_diff_absolute_long',
+            'noncomm_diff_absolute_short',
+            'comm_diff_absolute_long',
+            'comm_diff_absolute_short',
+            'noncomm_10_diff_absolute_long',
+            'noncomm_10_diff_absolute_short',
+            'comm_10_diff_absolute_long',
+            'comm_10_diff_absolute_short',
+        ]

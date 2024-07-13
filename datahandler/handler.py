@@ -73,7 +73,9 @@ def filter_legacy_df(final_data):
         'Change in Noncommercial-Long (All)',
         'Change in Noncommercial-Short (All)',
         'Change in Commercial-Long (All)',
-        'Change in Commercial-Short (All)'
+        'Change in Commercial-Short (All)',
+        'Change in Nonreportable-Long (All)',
+        'Change in Nonreportable-Short (All)'
     ]
 
     # Filter the dataframe
@@ -85,28 +87,113 @@ def filter_legacy_df(final_data):
     return filtered_legacy_df
 
 
+def calculate_net_positions_old(df):
+    df['Net_Noncommercial_Positions'] = df['Change in Noncommercial-Long (All)'] - \
+        df['Change in Noncommercial-Short (All)']
+    df['Net_Commercial_Positions'] = df['Change in Commercial-Long (All)'] - \
+        df['Change in Commercial-Short (All)']
+    df['Net_Nonreportable_Positions'] = df['Change in Nonreportable-Long (All)'] - \
+        df['Change in Nonreportable-Short (All)']
+    return df
+
+# Assuming the columns contain string representations of numbers
+
+
 def calculate_net_positions(df):
-    df['Net_Noncommercial_Positions'] = df['Noncommercial Positions-Long (All)'] - \
-        df['Noncommercial Positions-Short (All)']
-    df['Net_Commercial_Positions'] = df['Commercial Positions-Long (All)'] - \
-        df['Commercial Positions-Short (All)']
-    df['Net_Nonreportable_Positions'] = df['Nonreportable Positions-Long (All)'] - \
-        df['Nonreportable Positions-Short (All)']
+    for col in ['Noncommercial', 'Commercial', 'Nonreportable']:
+        long_col = f'Change in {col}-Long (All)'
+        short_col = f'Change in {col}-Short (All)'
+        net_col = f'Net_{col}_Positions'
+
+        # Try converting to numeric, handling errors with 'coerce'
+        try:
+            df[long_col] = pd.to_numeric(df[long_col], errors='coerce')
+            df[short_col] = pd.to_numeric(df[short_col], errors='coerce')
+        except:
+            # Handle potential conversion errors (e.g., print a message)
+            print(
+                f"Error converting columns {long_col} and {short_col} to numeric.")
+
+        # Now the subtraction should work (ignoring rows with conversion errors)
+        df[net_col] = df[long_col] - df[short_col]
+
     return df
 
 
-def calculate_percentage_change(df):
-    df[f'pct_change'] = df['pair_net_position'].pct_change() * 100
+def calculate_percentage_change(df, prefix, base, quote, isContract=False):
+    df[f'{prefix}_pct_change'] = (
+        (df[f'{prefix}_net_position'] - df[f'{prefix}_net_position'].shift(1)) / df[f'{prefix}_net_position'].shift(1)) * 100
     return df
 
 
-def calculate_5_week_avg_change(df, window):
-    df[f'{window}_week_change'] = df['pct_change'].rolling(
-        window=window).mean()
+def calculate_5_week_avg_change(df, window, prefix):
+    df[f'{prefix}_{window}_week_change'] = df[f'{prefix}_pct_change'].rolling(
+        window=window).sum()  # .mean()
+    return df
+
+
+def calculate_5_week_avg_change_open(df, window, prefix):
+    df[f'{prefix}_{window}_week_change_open_interest'] = df[f'{prefix}_pct_change_open_interest'].rolling(
+        window=window).sum()  # .mean()
+    return df
+
+
+def calculate_5_week_avg_diff_absolute(df, window, prefix, suff):
+    df[f'{prefix}_{window}_diff_absolute_{suff}'] = df[f'{prefix}_diff_absolute_{suff}'].rolling(
+        window=window).sum()  # .mean()
+    return df
+
+
+def convert_to_numeric(df):
+    """Converts specified columns in a DataFrame to numeric data types.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing the columns to convert.
+
+    Returns:
+        pandas.DataFrame: The DataFrame with the specified columns converted to numeric.
+    """
+
+    # Columns to convert (modify this list as needed)
+    numeric_cols = [
+        'base_open_interest',
+        'base_change_open_interest',
+        'quote_open_interest',
+        'quote_change_open_interest',
+        'base_long',
+        'base_short',
+        'base_net_position',
+        'quote_long',
+        'quote_short',
+        'quote_net_position',
+        'base_comm_long',
+        'base_comm_short',
+        'base_comm_net_position',
+        'quote_comm_long',
+        'quote_comm_short',
+        'quote_comm_net_position',
+        'base_nonrep_long',
+        'base_nonrep_short',
+        'base_nonrep_net_position',
+        'quote_nonrep_long',
+        'quote_nonrep_short',
+        'quote_nonrep_net_position',
+    ]
+
+    # Try converting columns to numeric, handling errors with 'coerce'
+    for col in numeric_cols:
+        try:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+        except:
+            # Handle potential conversion errors (e.g., print a message)
+            print(f"Error converting column {col} to numeric.")
+
     return df
 
 
 def analyze_legacy_df(legacy_df, currency_pairs, isContract=False):
+    print("analyzing")
+    print(isContract)
     combined_results = []
     pair_result = {}
 
@@ -130,6 +217,10 @@ def analyze_legacy_df(legacy_df, currency_pairs, isContract=False):
 
         # Rename columns to base and quote positions
         merged_df = merged_df.rename(columns={
+            'Open Interest (All)_base': 'base_open_interest',
+            'Change in Open Interest (All)_base': 'base_change_open_interest',
+            'Open Interest (All)_quote': 'quote_open_interest',
+            'Change in Open Interest (All)_quote': 'quote_change_open_interest',
             'Noncommercial Positions-Long (All)_base': 'base_long',
             'Noncommercial Positions-Short (All)_base': 'base_short',
             'Net_Noncommercial_Positions_base': 'base_net_position',
@@ -149,42 +240,101 @@ def analyze_legacy_df(legacy_df, currency_pairs, isContract=False):
             'Nonreportable Positions-Short (All)_quote': 'quote_nonrep_short',
             'Net_Nonreportable_Positions_quote': 'quote_nonrep_net_position',
         })
+        merged_df = convert_to_numeric(merged_df.copy())
 
         # Add pair information
 
         # print(f'Pair : {currency_to_symbol[base_currency]}/{currency_to_symbol[quote_currency]}')
+        print("before check")
 
         if not isContract:
+
             pair = f'{currency_to_symbol[base_currency]}/{currency_to_symbol[quote_currency]}'
+            print(pair)
             merged_df['pair'] = pair
+            merged_df['noncomm_diff_absolute_long'] = ((merged_df["base_long"] / merged_df["base_open_interest"]) * 100) - (
+                (merged_df["quote_long"] / merged_df["quote_open_interest"]) * 100)
+            merged_df['noncomm_diff_absolute_short'] = ((merged_df["base_short"] / merged_df["base_open_interest"]) * 100) - (
+                (merged_df["quote_short"] / merged_df["quote_open_interest"]) * 100)
+            merged_df['comm_diff_absolute_long'] = ((merged_df["base_comm_long"] / merged_df["base_open_interest"]) * 100) - (
+                (merged_df["quote_comm_long"] / merged_df["quote_open_interest"]) * 100)
+            merged_df['comm_diff_absolute_short'] = ((merged_df["base_comm_short"] / merged_df["base_open_interest"]) * 100) - (
+                (merged_df["quote_comm_short"] / merged_df["quote_open_interest"]) * 100)
             # Calculate pair positions based on the given rules
-            if quote_currency == "US Dollar":
+            if currency_to_symbol[quote_currency] == "USD":
+                print('quote issue')
                 merged_df['pair_long'] = merged_df['base_long']
                 merged_df['pair_short'] = merged_df['base_short']
-                merged_df['pair_net_position'] = merged_df['base_net_position']
-            elif base_currency == "US Dollar":
+                merged_df['pair_pct_change'] = (
+                    merged_df['base_net_position'] / (merged_df['base_long'] + merged_df['base_short'])) * 100
+                merged_df['pair_comm_pct_change'] = (merged_df['base_comm_net_position'] / (
+                    merged_df['base_comm_long'] + merged_df['base_comm_short'])) * 100
+                merged_df['pair_open_interest'] = merged_df['base_open_interest']
+                merged_df['pair_pct_change_open_interest'] = (
+                    merged_df['base_change_open_interest'] / merged_df['base_open_interest']) * 100
+            elif currency_to_symbol[base_currency] == "USD":
                 merged_df['pair_long'] = merged_df['quote_short']
                 merged_df['pair_short'] = merged_df['quote_long']
-                merged_df['pair_net_position'] = - \
-                    merged_df['quote_net_position']
+                print('base issue')
+                merged_df['pair_pct_change'] = (-merged_df['quote_net_position'] / (
+                    merged_df['quote_long'] + merged_df['quote_short'])) * 100
+                merged_df['pair_comm_pct_change'] = (-merged_df['quote_comm_net_position'] / (
+                    merged_df['quote_comm_long'] + merged_df['quote_comm_short'])) * 100
+                merged_df['pair_open_interest'] = merged_df['quote_open_interest']
+
+                merged_df['pair_pct_change_open_interest'] = (
+                    -merged_df['quote_change_open_interest'] / merged_df['quote_open_interest']) * 100
             else:
                 merged_df['pair_long'] = merged_df['base_long']
                 merged_df['pair_short'] = merged_df['base_short']
-                merged_df['pair_net_position'] = merged_df['base_net_position']
+                merged_df['pair_pct_change'] = ((merged_df['base_net_position'] / (merged_df['base_long'] + merged_df['base_short'])) - (
+                    merged_df['quote_net_position'] / (merged_df['quote_long'] + merged_df['quote_short']))) * 100
+                merged_df['pair_comm_pct_change'] = ((merged_df['base_comm_net_position'] / (merged_df['base_comm_long'] + merged_df['base_comm_short'])) - (
+                    merged_df['quote_comm_net_position'] / (merged_df['quote_comm_long'] + merged_df['quote_comm_short']))) * 100
+                merged_df['pair_open_interest'] = merged_df['base_open_interest']
+                merged_df['pair_pct_change_open_interest'] = ((merged_df['base_change_open_interest'] / merged_df['base_open_interest']) - (
+                    merged_df['quote_change_open_interest'] / merged_df['quote_open_interest'])) * 100
         else:
             pair = f'{currency_to_symbol[base_currency]}'
             print(f'Pair is {pair}')
             merged_df['pair'] = pair
             merged_df['pair_long'] = merged_df['base_long']
             merged_df['pair_short'] = merged_df['base_short']
-            merged_df['pair_net_position'] = merged_df['base_net_position']
+            merged_df['pair_pct_change'] = (
+                merged_df['base_net_position'] / (merged_df['base_long'] + merged_df['base_short'])) * 100
+            merged_df['pair_comm_pct_change'] = (merged_df['base_comm_net_position'] / (
+                merged_df['base_comm_long'] + merged_df['base_comm_short'])) * 100
+            merged_df['pair_open_interest'] = merged_df['base_open_interest']
+            merged_df['pair_pct_change_open_interest'] = (
+                merged_df['base_change_open_interest'] / merged_df['base_open_interest']) * 100
+            merged_df['noncomm_diff_absolute_long'] = ((merged_df["base_long"] / merged_df["base_open_interest"]) * 100) - (
+                (merged_df["quote_long"] / merged_df["quote_open_interest"]) * 100)
+            merged_df['noncomm_diff_absolute_short'] = ((merged_df["base_short"] / merged_df["base_open_interest"]) * 100) - (
+                (merged_df["quote_short"] / merged_df["quote_open_interest"]) * 100)
+            merged_df['comm_diff_absolute_long'] = ((merged_df["base_comm_long"] / merged_df["base_open_interest"]) * 100) - (
+                (merged_df["quote_comm_long"] / merged_df["quote_open_interest"]) * 100)
+            merged_df['comm_diff_absolute_short'] = ((merged_df["base_comm_short"] / merged_df["base_open_interest"]) * 100) - (
+                (merged_df["quote_comm_short"] / merged_df["quote_open_interest"]) * 100)
 
         # Calculate percentage changes for base, quote, and pair net positions
-        merged_df = calculate_percentage_change(merged_df)
+        # merged_df = calculate_percentage_change(merged_df,"pair")
+        # merged_df = calculate_percentage_change(merged_df,"base")
+        # merged_df = calculate_percentage_change(merged_df,"quote")
 
         # Calculate 5-week average percentage change
         for i in range(2, 11):
-            merged_df = calculate_5_week_avg_change(merged_df, i)
+            merged_df = calculate_5_week_avg_change(merged_df, i, "pair")
+            merged_df = calculate_5_week_avg_change(merged_df, i, "pair_comm")
+            merged_df = calculate_5_week_avg_diff_absolute(
+                merged_df, i, "noncomm", "long")
+            merged_df = calculate_5_week_avg_diff_absolute(
+                merged_df, i, "noncomm", "short")
+            merged_df = calculate_5_week_avg_diff_absolute(
+                merged_df, i, "comm", "long")
+            merged_df = calculate_5_week_avg_diff_absolute(
+                merged_df, i, "comm", "short")
+        for i in range(2, 11):
+            merged_df = calculate_5_week_avg_change_open(merged_df, i, "pair")
 
         # Calculate sentiment
         merged_df['sentiment'] = merged_df.apply(
@@ -197,6 +347,7 @@ def analyze_legacy_df(legacy_df, currency_pairs, isContract=False):
             lambda row: f'Long: {row["base_long"]}, Short: {row["base_short"]}',
             axis=1
         )
+        merged_df['isContract'] = isContract
 
         # Append to combined results
         combined_results.append(merged_df)
@@ -293,8 +444,7 @@ def filter_and_analyze_legacy_data(final_data):
 
     # Assuming final_data is loaded and passed to filter_legacy_df
     filtered_legacy_df = filter_legacy_df(final_data)
-
-    important_headers = [
+    general_headers = [
         'date',
         'pair',
         'base_long',
@@ -319,19 +469,98 @@ def filter_and_analyze_legacy_data(final_data):
         'pair_long',
         # Noncommercial Positions-Short (All) for the pair
         'pair_short',
-        'pair_net_position',
-        'pct_change',
-        '2_week_change',
-        '3_week_change',
-        '4_week_change',
-        '5_week_change',
-        '6_week_change',
-        '7_week_change',
-        '8_week_change',
-        '9_week_change',
-        '10_week_change',
-        'sentiment'
     ]
+
+    pct_change_position_headers = [
+        'pair_pct_change',
+        'pair_comm_pct_change',
+        'pair_2_week_change',
+        'pair_3_week_change',
+        'pair_4_week_change',
+        'pair_5_week_change',
+        'pair_6_week_change',
+        'pair_7_week_change',
+        'pair_8_week_change',
+        'pair_9_week_change',
+        'pair_10_week_change',
+        'pair_comm_2_week_change',
+        'pair_comm_3_week_change',
+        'pair_comm_4_week_change',
+        'pair_comm_5_week_change',
+        'pair_comm_6_week_change',
+        'pair_comm_7_week_change',
+        'pair_comm_8_week_change',
+        'pair_comm_9_week_change',
+        'pair_comm_10_week_change',
+    ]
+
+    pct_change_open_interest = [
+        'pair_pct_change_open_interest',
+        'pair_2_week_change_open_interest',
+        'pair_3_week_change_open_interest',
+        'pair_4_week_change_open_interest',
+        'pair_5_week_change_open_interest',
+        'pair_6_week_change_open_interest',
+        'pair_7_week_change_open_interest',
+        'pair_8_week_change_open_interest',
+        'pair_9_week_change_open_interest',
+        'pair_10_week_change_open_interest',
+    ]
+
+    pct_change_diff_absolute_noncomm = [
+        'noncomm_diff_absolute_long',
+        'noncomm_diff_absolute_short',
+        'noncomm_2_diff_absolute_long',
+        'noncomm_3_diff_absolute_long',
+        'noncomm_4_diff_absolute_long',
+        'noncomm_5_diff_absolute_long',
+        'noncomm_6_diff_absolute_long',
+        'noncomm_7_diff_absolute_long',
+        'noncomm_8_diff_absolute_long',
+        'noncomm_9_diff_absolute_long',
+        'noncomm_10_diff_absolute_long',
+        'noncomm_2_diff_absolute_short',
+        'noncomm_3_diff_absolute_short',
+        'noncomm_4_diff_absolute_short',
+        'noncomm_5_diff_absolute_short',
+        'noncomm_6_diff_absolute_short',
+        'noncomm_7_diff_absolute_short',
+        'noncomm_8_diff_absolute_short',
+        'noncomm_9_diff_absolute_short',
+        'noncomm_10_diff_absolute_short'
+    ]
+
+    pct_change_diff_absolute_comm = [
+        'comm_diff_absolute_long',
+        'comm_diff_absolute_short',
+        'comm_2_diff_absolute_long',
+        'comm_3_diff_absolute_long',
+        'comm_4_diff_absolute_long',
+        'comm_5_diff_absolute_long',
+        'comm_6_diff_absolute_long',
+        'comm_7_diff_absolute_long',
+        'comm_8_diff_absolute_long',
+        'comm_9_diff_absolute_long',
+        'comm_10_diff_absolute_long',
+        'comm_2_diff_absolute_short',
+        'comm_3_diff_absolute_short',
+        'comm_4_diff_absolute_short',
+        'comm_5_diff_absolute_short',
+        'comm_6_diff_absolute_short',
+        'comm_7_diff_absolute_short',
+        'comm_8_diff_absolute_short',
+        'comm_9_diff_absolute_short',
+        'comm_10_diff_absolute_short'
+    ]
+
+    extras_headers = [
+        'sentiment',
+        'isContract'
+    ]
+
+    important_headers = general_headers + pct_change_diff_absolute_comm + \
+        pct_change_diff_absolute_noncomm + \
+        pct_change_open_interest + pct_change_position_headers + extras_headers
 
     # Process all currency pairs
     legacy_df = filter_legacy_df(final_data)
@@ -341,7 +570,7 @@ def filter_and_analyze_legacy_data(final_data):
     combined_df2 = analyze_legacy_df(
         filtered_legacy_df, contracts, isContract=True).fillna(0)
     combined_df = pd.concat([combined_df1, combined_df2], ignore_index=True)
-    res = combined_df.sort_values(by='date')[important_headers]
+    res = combined_df.sort_values(by='date')  # [important_headers]
     # print(analyzed_df.head()[["Symbol","Decision",'Sentiment_Score']])
     return res
 
@@ -382,7 +611,7 @@ def fetch_cot_data(start_year, end_year, cot_type, date_header):
 
 
 def main(start_year, end_year):
-    reports_type = ['legacy_futopt']
+    reports_type = ['legacy_fut']
     date_header = ['As of Date in Form YYMMDD']
     final_data = []
     index = 0
@@ -418,7 +647,7 @@ def save_to_django_models(symbol_dataframes):
                         f"Entry for {pair} on {date_obj} already exists. Skipping...")
                     continue
 
-                # Ensure all necessary fields are available and handle edge cases
+                # Extract and handle all necessary fields
                 base_long = data.get('base_long', 0) or 0
                 base_short = data.get('base_short', 0) or 0
                 base_net_position = data.get('base_net_position', 0) or 0
@@ -443,18 +672,147 @@ def save_to_django_models(symbol_dataframes):
                     'quote_nonrep_net_position', 0) or 0
                 pair_long = data.get('pair_long', 0) or 0
                 pair_short = data.get('pair_short', 0) or 0
-                pair_net_position = data.get('pair_net_position', 0) or 0
-                pct_change = data.get('pct_change', 0) or 0
-                two_week_change = data.get('2_week_change', 0) or 0
-                three_week_change = data.get('3_week_change', 0) or 0
-                four_week_change = data.get('4_week_change', 0) or 0
-                five_week_change = data.get('5_week_change', 0) or 0
-                six_week_change = data.get('6_week_change', 0) or 0
-                seven_week_change = data.get('7_week_change', 0) or 0
-                eight_week_change = data.get('8_week_change', 0) or 0
-                nine_week_change = data.get('9_week_change', 0) or 0
-                ten_week_change = data.get('10_week_change', 0) or 0
+
+                # Extract percentage change headers
+                pair_pct_change = data.get('pair_pct_change', 0) or 0
+                pair_comm_pct_change = data.get('pair_comm_pct_change', 0) or 0
+                pair_2_week_change = data.get('pair_2_week_change', 0) or 0
+                pair_3_week_change = data.get('pair_3_week_change', 0) or 0
+                pair_4_week_change = data.get('pair_4_week_change', 0) or 0
+                pair_5_week_change = data.get('pair_5_week_change', 0) or 0
+                pair_6_week_change = data.get('pair_6_week_change', 0) or 0
+                pair_7_week_change = data.get('pair_7_week_change', 0) or 0
+                pair_8_week_change = data.get('pair_8_week_change', 0) or 0
+                pair_9_week_change = data.get('pair_9_week_change', 0) or 0
+                pair_10_week_change = data.get('pair_10_week_change', 0) or 0
+                pair_comm_2_week_change = data.get(
+                    'pair_comm_2_week_change', 0) or 0
+                pair_comm_3_week_change = data.get(
+                    'pair_comm_3_week_change', 0) or 0
+                pair_comm_4_week_change = data.get(
+                    'pair_comm_4_week_change', 0) or 0
+                pair_comm_5_week_change = data.get(
+                    'pair_comm_5_week_change', 0) or 0
+                pair_comm_6_week_change = data.get(
+                    'pair_comm_6_week_change', 0) or 0
+                pair_comm_7_week_change = data.get(
+                    'pair_comm_7_week_change', 0) or 0
+                pair_comm_8_week_change = data.get(
+                    'pair_comm_8_week_change', 0) or 0
+                pair_comm_9_week_change = data.get(
+                    'pair_comm_9_week_change', 0) or 0
+                pair_comm_10_week_change = data.get(
+                    'pair_comm_10_week_change', 0) or 0
+
+                # Extract open interest headers
+                pair_pct_change_open_interest = data.get(
+                    'pair_pct_change_open_interest', 0) or 0
+                pair_2_week_change_open_interest = data.get(
+                    'pair_2_week_change_open_interest', 0) or 0
+                pair_3_week_change_open_interest = data.get(
+                    'pair_3_week_change_open_interest', 0) or 0
+                pair_4_week_change_open_interest = data.get(
+                    'pair_4_week_change_open_interest', 0) or 0
+                pair_5_week_change_open_interest = data.get(
+                    'pair_5_week_change_open_interest', 0) or 0
+                pair_6_week_change_open_interest = data.get(
+                    'pair_6_week_change_open_interest', 0) or 0
+                pair_7_week_change_open_interest = data.get(
+                    'pair_7_week_change_open_interest', 0) or 0
+                pair_8_week_change_open_interest = data.get(
+                    'pair_8_week_change_open_interest', 0) or 0
+                pair_9_week_change_open_interest = data.get(
+                    'pair_9_week_change_open_interest', 0) or 0
+                pair_10_week_change_open_interest = data.get(
+                    'pair_10_week_change_open_interest', 0) or 0
+
+                # Extract noncommercial diff absolute headers
+                noncomm_diff_absolute_long = data.get(
+                    'noncomm_diff_absolute_long', 0) or 0
+                noncomm_diff_absolute_short = data.get(
+                    'noncomm_diff_absolute_short', 0) or 0
+                noncomm_2_diff_absolute_long = data.get(
+                    'noncomm_2_diff_absolute_long', 0) or 0
+                noncomm_3_diff_absolute_long = data.get(
+                    'noncomm_3_diff_absolute_long', 0) or 0
+                noncomm_4_diff_absolute_long = data.get(
+                    'noncomm_4_diff_absolute_long', 0) or 0
+                noncomm_5_diff_absolute_long = data.get(
+                    'noncomm_5_diff_absolute_long', 0) or 0
+                noncomm_6_diff_absolute_long = data.get(
+                    'noncomm_6_diff_absolute_long', 0) or 0
+                noncomm_7_diff_absolute_long = data.get(
+                    'noncomm_7_diff_absolute_long', 0) or 0
+                noncomm_8_diff_absolute_long = data.get(
+                    'noncomm_8_diff_absolute_long', 0) or 0
+                noncomm_9_diff_absolute_long = data.get(
+                    'noncomm_9_diff_absolute_long', 0) or 0
+                noncomm_10_diff_absolute_long = data.get(
+                    'noncomm_10_diff_absolute_long', 0) or 0
+                noncomm_2_diff_absolute_short = data.get(
+                    'noncomm_2_diff_absolute_short', 0) or 0
+                noncomm_3_diff_absolute_short = data.get(
+                    'noncomm_3_diff_absolute_short', 0) or 0
+                noncomm_4_diff_absolute_short = data.get(
+                    'noncomm_4_diff_absolute_short', 0) or 0
+                noncomm_5_diff_absolute_short = data.get(
+                    'noncomm_5_diff_absolute_short', 0) or 0
+                noncomm_6_diff_absolute_short = data.get(
+                    'noncomm_6_diff_absolute_short', 0) or 0
+                noncomm_7_diff_absolute_short = data.get(
+                    'noncomm_7_diff_absolute_short', 0) or 0
+                noncomm_8_diff_absolute_short = data.get(
+                    'noncomm_8_diff_absolute_short', 0) or 0
+                noncomm_9_diff_absolute_short = data.get(
+                    'noncomm_9_diff_absolute_short', 0) or 0
+                noncomm_10_diff_absolute_short = data.get(
+                    'noncomm_10_diff_absolute_short', 0) or 0
+
+                # Extract commercial diff absolute headers
+                comm_diff_absolute_long = data.get(
+                    'comm_diff_absolute_long', 0) or 0
+                comm_diff_absolute_short = data.get(
+                    'comm_diff_absolute_short', 0) or 0
+                comm_2_diff_absolute_long = data.get(
+                    'comm_2_diff_absolute_long', 0) or 0
+                comm_3_diff_absolute_long = data.get(
+                    'comm_3_diff_absolute_long', 0) or 0
+                comm_4_diff_absolute_long = data.get(
+                    'comm_4_diff_absolute_long', 0) or 0
+                comm_5_diff_absolute_long = data.get(
+                    'comm_5_diff_absolute_long', 0) or 0
+                comm_6_diff_absolute_long = data.get(
+                    'comm_6_diff_absolute_long', 0) or 0
+                comm_7_diff_absolute_long = data.get(
+                    'comm_7_diff_absolute_long', 0) or 0
+                comm_8_diff_absolute_long = data.get(
+                    'comm_8_diff_absolute_long', 0) or 0
+                comm_9_diff_absolute_long = data.get(
+                    'comm_9_diff_absolute_long', 0) or 0
+                comm_10_diff_absolute_long = data.get(
+                    'comm_10_diff_absolute_long', 0) or 0
+                comm_2_diff_absolute_short = data.get(
+                    'comm_2_diff_absolute_short', 0) or 0
+                comm_3_diff_absolute_short = data.get(
+                    'comm_3_diff_absolute_short', 0) or 0
+                comm_4_diff_absolute_short = data.get(
+                    'comm_4_diff_absolute_short', 0) or 0
+                comm_5_diff_absolute_short = data.get(
+                    'comm_5_diff_absolute_short', 0) or 0
+                comm_6_diff_absolute_short = data.get(
+                    'comm_6_diff_absolute_short', 0) or 0
+                comm_7_diff_absolute_short = data.get(
+                    'comm_7_diff_absolute_short', 0) or 0
+                comm_8_diff_absolute_short = data.get(
+                    'comm_8_diff_absolute_short', 0) or 0
+                comm_9_diff_absolute_short = data.get(
+                    'comm_9_diff_absolute_short', 0) or 0
+                comm_10_diff_absolute_short = data.get(
+                    'comm_10_diff_absolute_short', 0) or 0
+
+                # Extract extra headers
                 sentiment = data.get('sentiment', 'Neutral')
+                is_contract = data.get('isContract', False)
 
                 general_data = ProcessedData.objects.create(
                     date_interval=date_interval,
@@ -479,18 +837,78 @@ def save_to_django_models(symbol_dataframes):
                     quote_nonrep_net_position=quote_nonrep_net_position,
                     pair_long=pair_long,
                     pair_short=pair_short,
-                    pair_net_position=pair_net_position,
-                    pct_change=pct_change,
-                    two_week_change=two_week_change,
-                    three_week_change=three_week_change,
-                    four_week_change=four_week_change,
-                    five_week_change=five_week_change,
-                    six_week_change=six_week_change,
-                    seven_week_change=seven_week_change,
-                    eight_week_change=eight_week_change,
-                    nine_week_change=nine_week_change,
-                    ten_week_change=ten_week_change,
-                    sentiment=sentiment
+                    pair_pct_change=pair_pct_change,
+                    pair_comm_pct_change=pair_comm_pct_change,
+                    pair_2_week_change=pair_2_week_change,
+                    pair_3_week_change=pair_3_week_change,
+                    pair_4_week_change=pair_4_week_change,
+                    pair_5_week_change=pair_5_week_change,
+                    pair_6_week_change=pair_6_week_change,
+                    pair_7_week_change=pair_7_week_change,
+                    pair_8_week_change=pair_8_week_change,
+                    pair_9_week_change=pair_9_week_change,
+                    pair_10_week_change=pair_10_week_change,
+                    pair_comm_2_week_change=pair_comm_2_week_change,
+                    pair_comm_3_week_change=pair_comm_3_week_change,
+                    pair_comm_4_week_change=pair_comm_4_week_change,
+                    pair_comm_5_week_change=pair_comm_5_week_change,
+                    pair_comm_6_week_change=pair_comm_6_week_change,
+                    pair_comm_7_week_change=pair_comm_7_week_change,
+                    pair_comm_8_week_change=pair_comm_8_week_change,
+                    pair_comm_9_week_change=pair_comm_9_week_change,
+                    pair_comm_10_week_change=pair_comm_10_week_change,
+                    pair_pct_change_open_interest=pair_pct_change_open_interest,
+                    pair_2_week_change_open_interest=pair_2_week_change_open_interest,
+                    pair_3_week_change_open_interest=pair_3_week_change_open_interest,
+                    pair_4_week_change_open_interest=pair_4_week_change_open_interest,
+                    pair_5_week_change_open_interest=pair_5_week_change_open_interest,
+                    pair_6_week_change_open_interest=pair_6_week_change_open_interest,
+                    pair_7_week_change_open_interest=pair_7_week_change_open_interest,
+                    pair_8_week_change_open_interest=pair_8_week_change_open_interest,
+                    pair_9_week_change_open_interest=pair_9_week_change_open_interest,
+                    pair_10_week_change_open_interest=pair_10_week_change_open_interest,
+                    noncomm_diff_absolute_long=noncomm_diff_absolute_long,
+                    noncomm_diff_absolute_short=noncomm_diff_absolute_short,
+                    noncomm_2_diff_absolute_long=noncomm_2_diff_absolute_long,
+                    noncomm_3_diff_absolute_long=noncomm_3_diff_absolute_long,
+                    noncomm_4_diff_absolute_long=noncomm_4_diff_absolute_long,
+                    noncomm_5_diff_absolute_long=noncomm_5_diff_absolute_long,
+                    noncomm_6_diff_absolute_long=noncomm_6_diff_absolute_long,
+                    noncomm_7_diff_absolute_long=noncomm_7_diff_absolute_long,
+                    noncomm_8_diff_absolute_long=noncomm_8_diff_absolute_long,
+                    noncomm_9_diff_absolute_long=noncomm_9_diff_absolute_long,
+                    noncomm_10_diff_absolute_long=noncomm_10_diff_absolute_long,
+                    noncomm_2_diff_absolute_short=noncomm_2_diff_absolute_short,
+                    noncomm_3_diff_absolute_short=noncomm_3_diff_absolute_short,
+                    noncomm_4_diff_absolute_short=noncomm_4_diff_absolute_short,
+                    noncomm_5_diff_absolute_short=noncomm_5_diff_absolute_short,
+                    noncomm_6_diff_absolute_short=noncomm_6_diff_absolute_short,
+                    noncomm_7_diff_absolute_short=noncomm_7_diff_absolute_short,
+                    noncomm_8_diff_absolute_short=noncomm_8_diff_absolute_short,
+                    noncomm_9_diff_absolute_short=noncomm_9_diff_absolute_short,
+                    noncomm_10_diff_absolute_short=noncomm_10_diff_absolute_short,
+                    comm_diff_absolute_long=comm_diff_absolute_long,
+                    comm_diff_absolute_short=comm_diff_absolute_short,
+                    comm_2_diff_absolute_long=comm_2_diff_absolute_long,
+                    comm_3_diff_absolute_long=comm_3_diff_absolute_long,
+                    comm_4_diff_absolute_long=comm_4_diff_absolute_long,
+                    comm_5_diff_absolute_long=comm_5_diff_absolute_long,
+                    comm_6_diff_absolute_long=comm_6_diff_absolute_long,
+                    comm_7_diff_absolute_long=comm_7_diff_absolute_long,
+                    comm_8_diff_absolute_long=comm_8_diff_absolute_long,
+                    comm_9_diff_absolute_long=comm_9_diff_absolute_long,
+                    comm_10_diff_absolute_long=comm_10_diff_absolute_long,
+                    comm_2_diff_absolute_short=comm_2_diff_absolute_short,
+                    comm_3_diff_absolute_short=comm_3_diff_absolute_short,
+                    comm_4_diff_absolute_short=comm_4_diff_absolute_short,
+                    comm_5_diff_absolute_short=comm_5_diff_absolute_short,
+                    comm_6_diff_absolute_short=comm_6_diff_absolute_short,
+                    comm_7_diff_absolute_short=comm_7_diff_absolute_short,
+                    comm_8_diff_absolute_short=comm_8_diff_absolute_short,
+                    comm_9_diff_absolute_short=comm_9_diff_absolute_short,
+                    comm_10_diff_absolute_short=comm_10_diff_absolute_short,
+                    sentiment=sentiment,
+                    is_contract=is_contract
                 )
                 general_data.save()
                 print("Saved")
@@ -518,7 +936,7 @@ def execute():
     end_year = 2024
     final_data = main(start_year, end_year)
     analyzed_data = filter_and_analyze_legacy_data(final_data)
-    important_headers = [
+    general_headers = [
         'date',
         'pair',
         'base_long',
@@ -543,19 +961,99 @@ def execute():
         'pair_long',
         # Noncommercial Positions-Short (All) for the pair
         'pair_short',
-        'pair_net_position',
-        'pct_change',
-        '2_week_change',
-        '3_week_change',
-        '4_week_change',
-        '5_week_change',
-        '6_week_change',
-        '7_week_change',
-        '8_week_change',
-        '9_week_change',
-        '10_week_change',
-        'sentiment'
     ]
+
+    pct_change_position_headers = [
+        'pair_pct_change',
+        'pair_comm_pct_change',
+        'pair_2_week_change',
+        'pair_3_week_change',
+        'pair_4_week_change',
+        'pair_5_week_change',
+        'pair_6_week_change',
+        'pair_7_week_change',
+        'pair_8_week_change',
+        'pair_9_week_change',
+        'pair_10_week_change',
+        'pair_comm_2_week_change',
+        'pair_comm_3_week_change',
+        'pair_comm_4_week_change',
+        'pair_comm_5_week_change',
+        'pair_comm_6_week_change',
+        'pair_comm_7_week_change',
+        'pair_comm_8_week_change',
+        'pair_comm_9_week_change',
+        'pair_comm_10_week_change',
+    ]
+
+    pct_change_open_interest = [
+        'pair_pct_change_open_interest',
+        'pair_2_week_change_open_interest',
+        'pair_3_week_change_open_interest',
+        'pair_4_week_change_open_interest',
+        'pair_5_week_change_open_interest',
+        'pair_6_week_change_open_interest',
+        'pair_7_week_change_open_interest',
+        'pair_8_week_change_open_interest',
+        'pair_9_week_change_open_interest',
+        'pair_10_week_change_open_interest',
+    ]
+
+    pct_change_diff_absolute_noncomm = [
+        'noncomm_diff_absolute_long',
+        'noncomm_diff_absolute_short',
+        'noncomm_2_diff_absolute_long',
+        'noncomm_3_diff_absolute_long',
+        'noncomm_4_diff_absolute_long',
+        'noncomm_5_diff_absolute_long',
+        'noncomm_6_diff_absolute_long',
+        'noncomm_7_diff_absolute_long',
+        'noncomm_8_diff_absolute_long',
+        'noncomm_9_diff_absolute_long',
+        'noncomm_10_diff_absolute_long',
+        'noncomm_2_diff_absolute_short',
+        'noncomm_3_diff_absolute_short',
+        'noncomm_4_diff_absolute_short',
+        'noncomm_5_diff_absolute_short',
+        'noncomm_6_diff_absolute_short',
+        'noncomm_7_diff_absolute_short',
+        'noncomm_8_diff_absolute_short',
+        'noncomm_9_diff_absolute_short',
+        'noncomm_10_diff_absolute_short'
+    ]
+
+    pct_change_diff_absolute_comm = [
+        'comm_diff_absolute_long',
+        'comm_diff_absolute_short',
+        'comm_2_diff_absolute_long',
+        'comm_3_diff_absolute_long',
+        'comm_4_diff_absolute_long',
+        'comm_5_diff_absolute_long',
+        'comm_6_diff_absolute_long',
+        'comm_7_diff_absolute_long',
+        'comm_8_diff_absolute_long',
+        'comm_9_diff_absolute_long',
+        'comm_10_diff_absolute_long',
+        'comm_2_diff_absolute_short',
+        'comm_3_diff_absolute_short',
+        'comm_4_diff_absolute_short',
+        'comm_5_diff_absolute_short',
+        'comm_6_diff_absolute_short',
+        'comm_7_diff_absolute_short',
+        'comm_8_diff_absolute_short',
+        'comm_9_diff_absolute_short',
+        'comm_10_diff_absolute_short'
+    ]
+
+    extras_headers = [
+        'sentiment',
+        'isContract'
+    ]
+
+    important_headers = general_headers + pct_change_diff_absolute_comm + \
+        pct_change_diff_absolute_noncomm + \
+        pct_change_open_interest + pct_change_position_headers + extras_headers
+
     important_data = analyzed_data[important_headers]
     symbol_dataframes = regroup_by_symbol(important_data)
     save_to_django_models(symbol_dataframes)
