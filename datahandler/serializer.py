@@ -236,6 +236,25 @@ class HomePairChangeSerializer(ModelSerializer):
             'pair_8_week_change',
             'pair_9_week_change',
             'pair_10_week_change'
+            'pair_comm_2_week_change',
+            'pair_comm_3_week_change',
+            'pair_comm_4_week_change',
+            'pair_comm_5_week_change',
+            'pair_comm_6_week_change',
+            'pair_comm_7_week_change',
+            'pair_comm_8_week_change',
+            'pair_comm_9_week_change',
+            'pair_comm_10_week_change',
+            "pair_pct_change_open_interest",
+            "pair_2_week_change_open_interest",
+            "pair_3_week_change_open_interest",
+            "pair_4_week_change_open_interest",
+            "pair_5_week_change_open_interest",
+            "pair_6_week_change_open_interest",
+            "pair_7_week_change_open_interest",
+            "pair_8_week_change_open_interest",
+            "pair_9_week_change_open_interest",
+            "pair_10_week_change_open_interest",
         ]
 
 
