@@ -235,7 +235,7 @@ class HomePairChangeSerializer(ModelSerializer):
             'pair_7_week_change',
             'pair_8_week_change',
             'pair_9_week_change',
-            'pair_10_week_change'
+            'pair_10_week_change',
             'pair_comm_2_week_change',
             'pair_comm_3_week_change',
             'pair_comm_4_week_change',
