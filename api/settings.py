@@ -29,8 +29,8 @@ SECRET_KEY = 'django-insecure-h&y1423@xer76*1x=_s8a0_-a=l&v9itxcifs=j^e_8eks&xon
 DEBUG = True
 
 CSRF_TRUSTED_ORIGINS = ['http://194.164.72.71',
-                        'https://frantzdytradingco.com']
-ALLOWED_HOSTS = ['https://frantzdytradingco.com']
+                        'https://frantzdytradingco.com', "http://127.0.0.1"]
+ALLOWED_HOSTS = ['https://frantzdytradingco.com', "127.0.0.1"]
 
 AUTH_USER_MODEL = 'datahandler.CustomUser'
 broker_url = 'redis://localhost:6379/0'
