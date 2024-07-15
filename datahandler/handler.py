@@ -23,7 +23,6 @@ relevant_contracts = ['USD INDEX - ICE FUTURES U.S.',
                       'EURO FX - CHICAGO MERCANTILE EXCHANGE',
                       'BRITISH POUND - CHICAGO MERCANTILE EXCHANGE',
                       'JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE',
-                      'EURO FX/BRITISH POUND XRATE - CHICAGO MERCANTILE EXCHANGE',
                       'CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE',
                       'SWISS FRANC - CHICAGO MERCANTILE EXCHANGE',
                       'NZ DOLLAR - CHICAGO MERCANTILE EXCHANGE',
@@ -40,7 +39,6 @@ currency_to_symbol = {
     'GOLD - COMMODITY EXCHANGE INC.': 'GOLD',
     'BRITISH POUND - CHICAGO MERCANTILE EXCHANGE': 'GBP',
     'JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE': 'JPY',
-    'EURO FX/BRITISH POUND XRATE - CHICAGO MERCANTILE EXCHANGE': 'EUR',
     'CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE': 'CAD',
     'SWISS FRANC - CHICAGO MERCANTILE EXCHANGE': 'CHF',
     'NZ DOLLAR - CHICAGO MERCANTILE EXCHANGE': 'NZD',
@@ -294,6 +292,7 @@ def analyze_legacy_df(legacy_df, currency_pairs, isContract=False):
                 merged_df['pair_open_interest'] = merged_df['base_open_interest']
                 merged_df['pair_pct_change_open_interest'] = ((merged_df['base_change_open_interest'] / merged_df['base_open_interest']) - (
                     merged_df['quote_change_open_interest'] / merged_df['quote_open_interest'])) * 100
+
         else:
             pair = f'{currency_to_symbol[base_currency]}'
             print(f'Pair is {pair}')

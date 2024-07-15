@@ -1,5 +1,6 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
+import uuid
 
 # Create your models here.
 
@@ -7,20 +8,30 @@ from django.contrib.auth.models import AbstractUser
 class CustomUser(AbstractUser):
     username = models.CharField(max_length=255, default="", unique=True)
     name = models.CharField(max_length=255, default="")
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return self.username
 
 
+class RecoveryRequest(models.Model):
+    user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
+    recovery_id = models.UUIDField(default=uuid.uuid4, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"RecoveryRequest for {self.user.username}"
+
+
 class UserDetails(models.Model):
     user = models.OneToOneField(CustomUser, on_delete=models.CASCADE)
-    full_name = models.CharField(max_length=255, default="")
-    mobile = models.CharField(max_length=20, default="")
-    address = models.TextField(default="")
-    city = models.CharField(max_length=100, default="")
-    state = models.CharField(max_length=100, default="")
-    country = models.CharField(max_length=100, default="")
-    zip_code = models.CharField(max_length=20, default="")
+    full_name = models.CharField(max_length=255, default="", blank=True)
+    mobile = models.CharField(max_length=20, default="", blank=True)
+    address = models.TextField(default="", blank=True)
+    city = models.CharField(max_length=100, default="", blank=True)
+    state = models.CharField(max_length=100, default="", blank=True)
+    country = models.CharField(max_length=100, default="", blank=True)
+    zip_code = models.CharField(max_length=20, default="", blank=True)
 
     def __str__(self):
         return self.user.username
@@ -203,3 +214,17 @@ class ProcessedData(models.Model):
 
     def __str__(self):
         return f"{self.pair} - {self.date_interval.date.strftime('%Y-%m-%d')}"
+
+
+class VideoLinks(models.Model):
+    link = models.URLField(max_length=200)
+
+    def __str__(self):
+        return self.link
+
+
+class PdfFiles(models.Model):
+    file = models.FileField(upload_to='pdfs/')
+
+    def __str__(self):
+        return self.file.name

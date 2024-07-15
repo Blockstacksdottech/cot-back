@@ -114,14 +114,7 @@ WSGI_APPLICATION = 'api.wsgi.application'
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 
-
-
-
-"""
-
-DATABASES = {
-    'default':
-    {
+{
         # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
         'ENGINE': 'django.db.backends.postgresql',
         # Or path to database file if using sqlite3.
@@ -133,6 +126,24 @@ DATABASES = {
         'HOST': '',
         'PORT': '',                      # Set to empty string for default.
     }
+
+
+"""
+
+DATABASES = {
+    'default': {
+        # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
+        'ENGINE': 'django.db.backends.postgresql',
+        # Or path to database file if using sqlite3.
+        'NAME': 'cotdb',
+        # The following settings are not used with sqlite3:
+        'USER': 'cotuser',
+        'PASSWORD': 'cotpass123',
+        # Empty for localhost through domain sockets or '127.0.0.1' for localhost through TCP.
+        'HOST': '',
+        'PORT': '',                      # Set to empty string for default.
+    }
+
 }
 
 
@@ -183,3 +194,12 @@ CELERY_BROKER_URL = 'redis://localhost:6379'
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+FRONT_URL = config("FRONT_END_BASE_URL")
+
+EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_HOST = 'smtp.hostinger.com'
+EMAIL_PORT = 587  # or the port used by your SMTP server
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = config("SMTP_EMAIL")
+EMAIL_HOST_PASSWORD = config("SMTP_PASSWORD")

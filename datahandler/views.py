@@ -8,7 +8,8 @@ from django.db.models.functions import TruncMonth, TruncWeek
 from django.db.models import Sum
 from django.utils import timezone
 from collections import defaultdict
-
+from django.core.mail import send_mail
+from django.conf import settings
 # serializers imports
 from .serializer import *
 
@@ -498,4 +499,175 @@ class UserImageView(APIView):
         if serializer.is_valid():
             serializer.save(user=request.user)
             return Response(serializer.data, status=HTTP_200_OK)
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+# admin user management
+
+
+class UserBan(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        users = CustomUser.objects.filter(is_superuser=False)
+        return Response(AdminUserSerializer(users, many=True).data, status=HTTP_200_OK)
+
+    def post(self, request):
+        userId = request.data.get("userid", None)
+        if userId:
+            u = CustomUser.objects.filter(
+                id=userId, is_superuser=False).first()
+            if u:
+                u.is_active = not u.is_active
+                u.save()
+                return Response({}, status=HTTP_200_OK)
+            else:
+                return Response({}, status=HTTP_400_BAD_REQUEST)
+
+        else:
+            return Response({}, status=HTTP_400_BAD_REQUEST)
+
+
+class VideoLinksAPIView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        try:
+            video_links = VideoLinks.objects.all()
+            if video_links:
+                serializer = VideoLinksSerializer(video_links, many=True)
+                return Response(serializer.data, status=HTTP_200_OK)
+            else:
+                return Response({"detail": "No video link found."}, status=HTTP_404_NOT_FOUND)
+        except VideoLinks.DoesNotExist:
+            return Response({"detail": "No video link found."}, status=HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        video_link = VideoLinks.objects.create(link="")
+        serializer = VideoLinksSerializer(video_link, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=HTTP_200_OK)
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+
+class PublicVideoView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        try:
+            video_links = VideoLinks.objects.all()
+            if video_links:
+                serializer = VideoLinksSerializer(video_links, many=True)
+                return Response(serializer.data, status=HTTP_200_OK)
+            else:
+                return Response({"detail": "No video link found."}, status=HTTP_404_NOT_FOUND)
+        except VideoLinks.DoesNotExist:
+            return Response({"detail": "No video link found."}, status=HTTP_404_NOT_FOUND)
+
+
+class DeleteVideoLink(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        v_id = request.data.get("vid", None)
+        print(request.data)
+        print(v_id)
+        if v_id:
+            vid = VideoLinks.objects.filter(id=v_id).first()
+            if vid:
+                vid.delete()
+
+            return Response({}, status=HTTP_200_OK)
+
+        else:
+            return Response({}, status=HTTP_400_BAD_REQUEST)
+
+
+class PdfFilesAPIView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        try:
+            pdf_file = PdfFiles.objects.first()
+            if pdf_file:
+                serializer = PdfFilesSerializer(pdf_file)
+                return Response(serializer.data, status=HTTP_200_OK)
+            else:
+                return Response({"detail": "No PDF file found."}, status=HTTP_404_NOT_FOUND)
+        except PdfFiles.DoesNotExist:
+            return Response({"detail": "No PDF file found."}, status=HTTP_404_NOT_FOUND)
+
+    def post(self, request):
+        pdf_file, created = PdfFiles.objects.get_or_create(id=1)
+        serializer = PdfFilesSerializer(pdf_file, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=HTTP_200_OK if not created else HTTP_201_CREATED)
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+
+class PublicPdfView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        try:
+            pdf_file = PdfFiles.objects.first()
+            if pdf_file:
+                serializer = PdfFilesSerializer(pdf_file)
+                return Response(serializer.data, status=HTTP_200_OK)
+            else:
+                return Response({"detail": "No PDF file found."}, status=HTTP_404_NOT_FOUND)
+        except PdfFiles.DoesNotExist:
+            return Response({"detail": "No PDF file found."}, status=HTTP_404_NOT_FOUND)
+
+# Recovery view
+
+
+class RequestPasswordResetView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        rid = request.query_params.get("rid", None)
+        if rid:
+            recov = RecoveryRequest.objects.filter(recovery_id=rid).first()
+            if recov:
+
+                return Response({}, status=HTTP_200_OK)
+            else:
+                return Response({}, status=HTTP_400_BAD_REQUEST)
+        else:
+            return Response({}, status=HTTP_400_BAD_REQUEST)
+
+    def post(self, request):
+        serializer = EmailSerializer(data=request.data)
+        if serializer.is_valid():
+            email = serializer.validated_data['email']
+            try:
+                user = CustomUser.objects.get(email=email)
+                RecoveryRequest.objects.filter(user=user).delete()
+                recovery_request = RecoveryRequest.objects.create(user=user)
+                recovery_link = f"{settings.FRONT_URL}/reset-password?reqId={recovery_request.recovery_id}"
+                print("sending email here ")
+                print(settings.EMAIL_HOST_USER)
+                send_mail(
+                    'Password Recovery',
+                    f'Click the link to reset your password: {recovery_link}',
+                    settings.EMAIL_HOST_USER,
+                    [email,],
+                    fail_silently=False,
+                )
+                return Response({"detail": "Recovery email sent."}, status=HTTP_200_OK)
+            except CustomUser.DoesNotExist:
+                return Response({"detail": "User with this email does not exist."}, status=HTTP_404_NOT_FOUND)
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+
+class ResetPasswordView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        serializer = PasswordResetSerializer(data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response({"detail": "Password reset successfully."}, status=HTTP_200_OK)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)

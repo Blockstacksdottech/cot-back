@@ -1,5 +1,5 @@
 from .models import (
-    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage
+    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest
 )
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -274,7 +274,7 @@ class ScannerDateSerializer(ModelSerializer):
 
         # On applique le filtre sur notre queryset pour n'avoir que les produits actifs
         queryset = ProcessedData.objects.filter(
-            date_interval=instance, is_contract=False)
+            date_interval=instance)
         # Le serializer est créé avec le queryset défini et toujours défini en tant que many=True
         serializer = ScannerSerializer(queryset, many=True)
         # la propriété '.data' est le rendu de notre serializer que nous retournons ici
@@ -312,3 +312,62 @@ class ScannerSerializer(ModelSerializer):
             'comm_10_diff_absolute_long',
             'comm_10_diff_absolute_short',
         ]
+
+
+class AdminUserSerializer(serializers.ModelSerializer):
+
+    details = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+
+    class Meta:
+        model = CustomUser
+        fields = ["id", "username", "is_active", "email", "details", "image"]
+
+    def get_details(self, instance):
+        d = UserDetails.objects.filter(user=instance).first()
+        if not d:
+            d = UserDetails.objects.create(user=instance)
+            d.save()
+        return UserDetailsSerializer(d).data
+
+    def get_image(self, instance):
+        i = UserImage.objects.filter(user=instance).first()
+        if i:
+            return UserImageSerializer(i).data
+        else:
+            return None
+
+
+class VideoLinksSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = VideoLinks
+        fields = ['id', 'link']
+
+
+class PdfFilesSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PdfFiles
+        fields = ['file']
+
+
+class EmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+
+
+class PasswordResetSerializer(serializers.Serializer):
+    recovery_id = serializers.UUIDField()
+    new_password = serializers.CharField(write_only=True)
+
+    def validate_recovery_id(self, value):
+        try:
+            self.recovery_request = RecoveryRequest.objects.get(
+                recovery_id=value)
+        except RecoveryRequest.DoesNotExist:
+            raise serializers.ValidationError("Invalid recovery ID")
+        return value
+
+    def save(self):
+        self.recovery_request.user.set_password(
+            self.validated_data['new_password'])
+        self.recovery_request.user.save()
+        self.recovery_request.delete()
