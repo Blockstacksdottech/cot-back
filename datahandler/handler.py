@@ -30,7 +30,8 @@ relevant_contracts = ['USD INDEX - ICE FUTURES U.S.',
                       'AUSTRALIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE',
                       'WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE',
                       'GOLD - COMMODITY EXCHANGE INC.',
-                      'S&P 500 Consolidated - CHICAGO MERCANTILE EXCHANGE'
+                      'S&P 500 Consolidated - CHICAGO MERCANTILE EXCHANGE',
+                      "BITCOIN - CHICAGO MERCANTILE EXCHANGE"
                       ]
 
 currency_to_symbol = {
@@ -47,7 +48,8 @@ currency_to_symbol = {
     'NEW ZEALAND DOLLAR - CHICAGO MERCANTILE EXCHANGE': 'NZD',
     'WTI-PHYSICAL - NEW YORK MERCANTILE EXCHANGE': "Crude OIL",
     'GOLD - COMMODITY EXCHANGE INC.': "GOLD",
-    'S&P 500 Consolidated - CHICAGO MERCANTILE EXCHANGE': "S&P 500"
+    'S&P 500 Consolidated - CHICAGO MERCANTILE EXCHANGE': "S&P 500",
+    "BITCOIN - CHICAGO MERCANTILE EXCHANGE": "BTC"
 
 }
 
@@ -931,7 +933,7 @@ def regroup_by_symbol(important_data):
 
 
 def execute():
-    start_year = 2005
+    start_year = 2019
     end_year = 2024
     final_data = main(start_year, end_year)
     analyzed_data = filter_and_analyze_legacy_data(final_data)

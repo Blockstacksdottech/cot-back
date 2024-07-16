@@ -1,5 +1,5 @@
 from .models import (
-    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest
+    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement
 )
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -341,13 +341,13 @@ class AdminUserSerializer(serializers.ModelSerializer):
 class VideoLinksSerializer(serializers.ModelSerializer):
     class Meta:
         model = VideoLinks
-        fields = ['id', 'link']
+        fields = ['id', 'topic', 'link']
 
 
 class PdfFilesSerializer(serializers.ModelSerializer):
     class Meta:
         model = PdfFiles
-        fields = ['file']
+        fields = ['id', 'topic', 'file']
 
 
 class EmailSerializer(serializers.Serializer):
@@ -371,3 +371,17 @@ class PasswordResetSerializer(serializers.Serializer):
             self.validated_data['new_password'])
         self.recovery_request.user.save()
         self.recovery_request.delete()
+
+
+class AnnouncementSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Announcement
+        fields = ['id', 'topic', 'description', 'date']
+        extra_kwargs = {'date': {'read_only': True, 'required': False}}
+
+
+class ContactFormSerializer(serializers.Serializer):
+    name = serializers.CharField(max_length=255)
+    email = serializers.EmailField()
+    subject = serializers.CharField(max_length=255)
+    message = serializers.CharField()

@@ -203,3 +203,5 @@ EMAIL_PORT = 587  # or the port used by your SMTP server
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = config("SMTP_EMAIL")
 EMAIL_HOST_PASSWORD = config("SMTP_PASSWORD")
+
+SUPPORT_EMAIL = config("SUPPORT_EMAIL")

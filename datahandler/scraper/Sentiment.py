@@ -6,29 +6,33 @@ class Sentiment:
     def __init__(self):
         # Replace with the actual website URL
         self.url = 'https://www.myfxbook.com/community/outlook'
-        self.symbol_list = ['EUR/NZD',
-                            'GBP/CAD',
-                            'NZD/JPY',
+        self.symbol_list = ['AUD/JPY',
+                            'EUR/AUD',
+                            'AUD/CHF',
+                            'CAD/CHF',
+                            'CHF/JPY',
+                            'EUR/JPY',
+                            'EUR/CHF',
+                            'AUD/CAD',
+                            'EUR/CAD',
                             'CAD/JPY',
                             'AUD/NZD',
-                            'EUR/JPY',
-                            'GBP/USD',
-                            'EUR/CAD',
-                            'EUR/USD',
-                            'GBP/CHF',
-                            'AUD/USD',
-                            'USD/CHF',
-                            'EUR/GBP',
-                            'GBP/AUD',
-                            'CAD/CHF',
-                            'GBP/JPY',
-                            'USD/JPY',
-                            'AUD/JPY',
+                            'NZD/JPY',
+                            'NZD/CHF',
                             'GBP/NZD',
+                            'EUR/NZD',
+                            'USD/JPY',
+                            'AUD/USD',
+                            'GBP/CAD',
+                            'GBP/CHF',
+                            'GBP/JPY',
+                            'NZD/CAD',
                             'USD/CAD',
-                            'EUR/AUD',
-                            'AUD/CAD',
-                            'EUR/CHF',
+                            'GBP/AUD',
+                            'EUR/GBP',
+                            'GBP/USD',
+                            'USD/CHF',
+                            'EUR/USD',
                             'NZD/USD']
 
     def extract_symbol_data(self, element):
@@ -124,3 +128,6 @@ class Sentiment:
         outlook_data = self.get_outlook_data(self.url, self.symbol_list)
 
         return outlook_data
+
+    def scrape_adr(self):
+        pass

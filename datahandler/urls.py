@@ -10,6 +10,10 @@ from rest_framework import routers
 router = routers.SimpleRouter()
 router.register("data", DataHandler, basename="data-handler")
 router.register("top", HomePairsView, basename="top pairs")
+router.register("adm-announcement", AdminAnnouncementView,
+                basename="admin-announcement")
+router.register("announcement", PublicAnnouncementView,
+                basename="announcement")
 
 
 urlpatterns = [
@@ -44,8 +48,10 @@ urlpatterns = [
     path('public-video-link', PublicVideoView.as_view(), name='video-link'),
     path('delete-video-link', DeleteVideoLink.as_view(), name='video-link'),
     path('pdf-file', PdfFilesAPIView.as_view(), name='pdf-file-api'),
+    path('delete-pdf-file', DeletePdfFile.as_view(), name='pdf-file-api'),
     path('public-pdf-file', PublicPdfView.as_view(), name='pdf-file-api'),
     path('request-password-reset', RequestPasswordResetView.as_view(),
          name='request-password-reset'),
     path('reset-password', ResetPasswordView.as_view(), name='reset-password'),
+    path('contact', ContactFormView.as_view(), name='contact-form'),
 ]

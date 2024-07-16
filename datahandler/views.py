@@ -555,6 +555,11 @@ class PublicVideoView(APIView):
 
     def get(self, request):
         try:
+            user = request.user
+            valid, tier, s_user = get_valid_and_tier(user)
+            validation_res = validate_user(s_user, tier, valid, user, 1)
+            if not validation_res:
+                return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)
             video_links = VideoLinks.objects.all()
             if video_links:
                 serializer = VideoLinksSerializer(video_links, many=True)
@@ -583,14 +588,30 @@ class DeleteVideoLink(APIView):
             return Response({}, status=HTTP_400_BAD_REQUEST)
 
 
+class DeletePdfFile(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        f_id = request.data.get("fid", None)
+        if f_id:
+            f = PdfFiles.objects.filter(id=f_id).first()
+            if f:
+                f.delete()
+
+            return Response({}, status=HTTP_200_OK)
+
+        else:
+            return Response({}, status=HTTP_400_BAD_REQUEST)
+
+
 class PdfFilesAPIView(APIView):
     permission_classes = [permissions.IsAdminUser]
 
     def get(self, request):
         try:
-            pdf_file = PdfFiles.objects.first()
+            pdf_file = PdfFiles.objects.all()
             if pdf_file:
-                serializer = PdfFilesSerializer(pdf_file)
+                serializer = PdfFilesSerializer(pdf_file, many=True)
                 return Response(serializer.data, status=HTTP_200_OK)
             else:
                 return Response({"detail": "No PDF file found."}, status=HTTP_404_NOT_FOUND)
@@ -598,22 +619,27 @@ class PdfFilesAPIView(APIView):
             return Response({"detail": "No PDF file found."}, status=HTTP_404_NOT_FOUND)
 
     def post(self, request):
-        pdf_file, created = PdfFiles.objects.get_or_create(id=1)
-        serializer = PdfFilesSerializer(pdf_file, data=request.data)
+        # pdf_file, created = PdfFiles.objects.get_or_create(id=1)
+        serializer = PdfFilesSerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
-            return Response(serializer.data, status=HTTP_200_OK if not created else HTTP_201_CREATED)
+            return Response(serializer.data, status=HTTP_200_OK)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
 
 class PublicPdfView(APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         try:
-            pdf_file = PdfFiles.objects.first()
+            user = request.user
+            valid, tier, s_user = get_valid_and_tier(user)
+            validation_res = validate_user(s_user, tier, valid, user, 1)
+            if not validation_res:
+                return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)
+            pdf_file = PdfFiles.objects.all()
             if pdf_file:
-                serializer = PdfFilesSerializer(pdf_file)
+                serializer = PdfFilesSerializer(pdf_file, many=True)
                 return Response(serializer.data, status=HTTP_200_OK)
             else:
                 return Response({"detail": "No PDF file found."}, status=HTTP_404_NOT_FOUND)
@@ -670,4 +696,42 @@ class ResetPasswordView(APIView):
         if serializer.is_valid():
             serializer.save()
             return Response({"detail": "Password reset successfully."}, status=HTTP_200_OK)
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+
+class AdminAnnouncementView(ModelViewSet):
+    queryset = Announcement.objects.all()
+    serializer_class = AnnouncementSerializer
+    permission_classes = [permissions.IsAdminUser]
+    http_method_names = ["get", "post", "delete"]
+
+
+class PublicAnnouncementView(ModelViewSet):
+    queryset = Announcement.objects.all()
+    serializer_class = AnnouncementSerializer
+    permission_classes = [permissions.AllowAny]
+    http_method_names = ["get"]
+
+
+class ContactFormView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request, *args, **kwargs):
+        serializer = ContactFormSerializer(data=request.data)
+        if serializer.is_valid():
+            name = serializer.validated_data['name']
+            email = serializer.validated_data['email']
+            subject = serializer.validated_data['subject']
+            message = serializer.validated_data['message']
+            print(settings.EMAIL_HOST_PASSWORD)
+            # Send the email
+            send_mail(
+                subject=f"Contact Form Submission: {subject}",
+                message=f"Name: {name}\nEmail: {email}\nMessage:\n{message}",
+                from_email=settings.EMAIL_HOST_USER,  # You can use a no-reply email
+                recipient_list=[settings.SUPPORT_EMAIL,],
+                fail_silently=False,
+            )
+
+            return Response({'message': 'Email sent successfully'}, status=HTTP_200_OK)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
