@@ -8,6 +8,7 @@ import uuid
 class CustomUser(AbstractUser):
     username = models.CharField(max_length=255, default="", unique=True)
     name = models.CharField(max_length=255, default="")
+    email = models.EmailField(unique=True)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
