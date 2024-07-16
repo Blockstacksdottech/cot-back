@@ -48,6 +48,8 @@ def get_tier_level(name):
         return 2
     elif "premium" in name_lower:
         return 3
+    elif "custom" in name_lower:
+        return 4
     else:
         return 0
 
@@ -208,22 +210,14 @@ class NetSpeculativeView(APIView):
             week_data = next(
                 (item for item in response_data[symbol] if item["date"] == week_start_str), None)
 
-            quote_currency = entry.pair.split("/")[-1]
-            base_currency = entry.pair.split("/")[0]
-            if quote_currency == "USD":
+            if entry.is_contract:
                 pair_long = entry.base_long
                 pair_short = entry.base_short
-                pair_net_position = entry.base_net_position
-            elif base_currency == "USD":
-                pair_long = entry.quote_short
-                pair_short = entry.quote_long
-                pair_net_position = -entry.quote_net_position
             else:
-                pair_long = entry.base_long
-                pair_short = entry.base_short
-                pair_net_position = entry.base_net_position
+                pair_long = entry.base_long + entry.quote_long
+                pair_short = entry.base_short + entry.quote_short
 
-            score = pair_net_position
+            score = pair_long - pair_short
 
             if week_data:
                 week_data["score"] += score
@@ -257,13 +251,13 @@ class CrowdingPositionsView(APIView):
                 (item for item in response_data[symbol] if item["date"] == week_start_str), None)
 
             if week_data:
-                week_data["long"] += entry.pair_long
-                week_data["short"] += entry.pair_short
+                week_data["long"] += entry.base_long if entry.is_contract else entry.base_long + entry.quote_long
+                week_data["short"] += entry.base_short if entry.is_contract else entry.base_short + entry.quote_short
             else:
                 response_data[symbol].append({
                     "date": entry.date_interval.date.strftime("%y-%m-%d"),
-                    "long": entry.pair_long,
-                    "short": entry.pair_short
+                    "long": entry.base_long if entry.is_contract else entry.base_long + entry.quote_long,
+                    "short": entry.base_short if entry.is_contract else entry.base_short + entry.quote_short
                 })
 
         # Convert defaultdict to a regular dict
@@ -291,22 +285,14 @@ class NetSpeculativeCommView(APIView):
             week_data = next(
                 (item for item in response_data[symbol] if item["date"] == week_start_str), None)
 
-            quote_currency = entry.pair.split("/")[-1]
-            base_currency = entry.pair.split("/")[0]
-            if quote_currency == "USD":
+            if entry.is_contract:
                 pair_long = entry.base_comm_long
                 pair_short = entry.base_comm_short
-                pair_net_position = entry.base_comm_net_position
-            elif base_currency == "USD":
-                pair_long = entry.quote_comm_short
-                pair_short = entry.quote_comm_long
-                pair_net_position = -entry.quote_comm_net_position
             else:
-                pair_long = entry.base_comm_long
-                pair_short = entry.base_comm_short
-                pair_net_position = entry.base_comm_net_position
+                pair_long = entry.base_comm_long + entry.quote_comm_long
+                pair_short = entry.base_comm_short + entry.quote_comm_short
 
-            score = pair_net_position
+            score = pair_long - pair_short
 
             if week_data:
                 week_data["score"] += score
@@ -339,29 +325,16 @@ class CrowdingPositionsCommView(APIView):
             week_data = next(
                 (item for item in response_data[symbol] if item["date"] == week_start_str), None)
 
-            quote_currency = entry.pair.split("/")[-1]
-            base_currency = entry.pair.split("/")[0]
-            if quote_currency == "USD":
-                pair_long = entry.base_comm_long
-                pair_short = entry.base_comm_short
-                pair_net_position = entry.base_comm_net_position
-            elif base_currency == "USD":
-                pair_long = entry.quote_comm_short
-                pair_short = entry.quote_comm_long
-                pair_net_position = -entry.quote_comm_net_position
-            else:
-                pair_long = entry.base_comm_long
-                pair_short = entry.base_comm_short
-                pair_net_position = entry.base_comm_net_position
-
             if week_data:
-                week_data["long"] += pair_long
-                week_data["short"] += pair_short
+                week_data["long"] += entry.base_comm_long if entry.is_contract else entry.base_comm_long + \
+                    entry.quote_comm_long
+                week_data["short"] += entry.base_comm_short if entry.is_contract else entry.base_comm_short + \
+                    entry.quote_comm_short
             else:
                 response_data[symbol].append({
                     "date": entry.date_interval.date.strftime("%y-%m-%d"),
-                    "long": pair_long,
-                    "short": pair_short
+                    "long": entry.base_comm_long if entry.is_contract else entry.base_comm_long + entry.quote_comm_long,
+                    "short": entry.base_comm_short if entry.is_contract else entry.base_comm_short + entry.quote_comm_short
                 })
 
         # Convert defaultdict to a regular dict

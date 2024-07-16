@@ -435,10 +435,30 @@ def filter_and_analyze_legacy_data(final_data):
          "SWISS FRANC - CHICAGO MERCANTILE EXCHANGE")
     ]
 
+    extra_pairs = [
+        ("NZ DOLLAR - CHICAGO MERCANTILE EXCHANGE",
+         "CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE"),  # NZDCAD
+        ("NZ DOLLAR - CHICAGO MERCANTILE EXCHANGE",
+         "SWISS FRANC - CHICAGO MERCANTILE EXCHANGE"),      # NZDCHF
+        ("CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE",
+         "SWISS FRANC - CHICAGO MERCANTILE EXCHANGE"),  # CADCHF
+        ("SWISS FRANC - CHICAGO MERCANTILE EXCHANGE",
+         "JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE"),    # CHFJPY
+        ("CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE",
+         "JAPANESE YEN - CHICAGO MERCANTILE EXCHANGE"),  # CADJPY
+        ("AUSTRALIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE",
+         "CANADIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE"),  # AUDCAD
+        ("AUSTRALIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE",
+         "NZ DOLLAR - CHICAGO MERCANTILE EXCHANGE"),  # AUDNZD
+        ("AUSTRALIAN DOLLAR - CHICAGO MERCANTILE EXCHANGE",
+         "SWISS FRANC - CHICAGO MERCANTILE EXCHANGE")  # AUDCHF
+    ]
+
     contracts = [(x, x) for x in relevant_contracts]
 
     # Combine all pairs
-    all_currency_pairs = usd_pairs + eur_pairs + jpy_pairs + gbp_pairs + chf_pairs
+    all_currency_pairs = usd_pairs + eur_pairs + \
+        jpy_pairs + gbp_pairs + chf_pairs + extra_pairs
     all_currency_pairs = list(set(all_currency_pairs))
     print(len(all_currency_pairs))
     print(len(contracts))
