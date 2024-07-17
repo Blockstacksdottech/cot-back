@@ -10,6 +10,7 @@ from django.utils import timezone
 from collections import defaultdict
 from django.core.mail import send_mail
 from django.conf import settings
+from urllib.parse import urlparse
 # serializers imports
 from .serializer import *
 
@@ -195,7 +196,7 @@ class NetSpeculativeView(APIView):
     def get(self, request):
         current_year = timezone.now().year
         data_entries = ProcessedData.objects.filter(
-            date_interval__date__year=current_year)
+            date_interval__date__year=current_year).order_by("date_interval__date")
 
         # Dictionary to hold aggregated data
         response_data = defaultdict(list)
@@ -235,7 +236,7 @@ class CrowdingPositionsView(APIView):
     def get(self, request):
         current_year = timezone.now().year
         data_entries = ProcessedData.objects.filter(
-            date_interval__date__year=current_year)
+            date_interval__date__year=current_year).order_by("date_interval__date")
 
         # Dictionary to hold aggregated data
         response_data = defaultdict(list)
@@ -270,7 +271,7 @@ class NetSpeculativeCommView(APIView):
     def get(self, request):
         current_year = timezone.now().year
         data_entries = ProcessedData.objects.filter(
-            date_interval__date__year=current_year)
+            date_interval__date__year=current_year).order_by("date_interval__date")
 
         # Dictionary to hold aggregated data
         response_data = defaultdict(list)
@@ -310,7 +311,7 @@ class CrowdingPositionsCommView(APIView):
     def get(self, request):
         current_year = timezone.now().year
         data_entries = ProcessedData.objects.filter(
-            date_interval__date__year=current_year)
+            date_interval__date__year=current_year).order_by("date_interval__date")
 
         # Dictionary to hold aggregated data
         response_data = defaultdict(list)
@@ -503,6 +504,53 @@ class UserBan(APIView):
 class VideoLinksAPIView(APIView):
     permission_classes = [permissions.IsAdminUser]
 
+    def get_first_get_param(self, url):
+        """Extracts the first GET parameter value from a URL.
+
+        Args:
+            url: The URL string.
+
+        Returns:
+            The value of the first GET parameter, or None if no parameter is found.
+        """
+        parsed_url = urlparse(url)
+        if parsed_url.query:
+            # Split query string by '&' to get individual parameters
+            params = parsed_url.query.split('&')
+            # Assuming the first parameter is what you need
+            return params[0].split('=')[1]  # Split by '=' to get value
+        else:
+            return None
+
+    def get_last_path_segment(self, url):
+        """Extracts the last element (segment) of the URL path.
+
+        Args:
+            url: The URL string.
+
+        Returns:
+            The last element of the URL path, or None if the URL has no path.
+        """
+        url = url.split("?")[0]
+        parsed_url = urlparse(url)
+        path = parsed_url.path.strip('/')  # Remove leading/trailing slashes
+        if path:
+            return path.split('/')[-1]  # Split by '/' and get last element
+        else:
+            return None
+
+    def process_link(self, l):
+        if "embed" in l:
+            return l
+        elif "watch" in l:
+            u_id = self.get_first_get_param(l)
+            link = "https://www.youtube.com/embed/"+u_id
+            return link
+        elif "youtu.be" in l:
+            u_id = self.get_last_path_segment(l)
+            link = "https://www.youtube.com/embed/"+u_id
+            return link
+
     def get(self, request):
         try:
             video_links = VideoLinks.objects.all()
@@ -518,7 +566,11 @@ class VideoLinksAPIView(APIView):
         video_link = VideoLinks.objects.create(link="")
         serializer = VideoLinksSerializer(video_link, data=request.data)
         if serializer.is_valid():
-            serializer.save()
+            obj = serializer.save()
+            l = obj.link
+            new_link = self.process_link(l)
+            obj.link = new_link
+            obj.save()
             return Response(serializer.data, status=HTTP_200_OK)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
