@@ -22,102 +22,74 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 # stripe
 from drf_stripe.models import StripeUser, Subscription
 from drf_stripe.views import CreateStripeCheckoutSession
+from drf_stripe.stripe_api.api import stripe_api as stripe
 
 # scripts
 from .scraper.Sentiment import Sentiment
+from .helper import update_user_subscription, get_valid_and_tier, get_tier_level, is_subscription_canceled, is_subscription_valid, validate_user
 
 
 # helpers here
 
-def get_tier_level(name):
-    """
-    This function assigns tier levels based on the string 'name'.
-
-    Args:
-        name: The string to check.
-
-    Returns:
-        1 if "basic" is found in the name (case-insensitive),
-        2 if "standard" is found,
-        3 if "premium" is found,
-        0 otherwise.
-    """
-    name_lower = name.lower()
-    if "basic" in name_lower:
-        return 1
-    elif "standard" in name_lower:
-        return 2
-    elif "premium" in name_lower:
-        return 3
-    elif "custom" in name_lower:
-        return 4
-    else:
-        return 0
-
-
-def is_subscription_valid(subscription):
-    """
-    This function checks if a subscription's period_end is still in the future.
-
-    Args:
-        subscription: The subscription object to check.
-
-    Returns:
-        True if the period_end is in the future, False otherwise.
-    """
-    now = timezone.now()
-    return subscription.period_end > now
-
-
-def is_subscription_canceled(subscription):
-    if subscription.ended_at:
-        if subscription.ended_at <= timezone.now():
-            return True
-        else:
-            return True
-    else:
-        return False
-
-
-def get_valid_and_tier(user):
-    s_user = StripeUser.objects.filter(user=user).first()
-    tier = 0
-    valid = False
-    if not s_user:
-        valid = False
-    else:
-        subscriptions = Subscription.objects.filter(
-            stripe_user=s_user).order_by("-period_start")
-        if len(subscriptions) == 0:
-            valid = False
-        else:
-            sub = subscriptions[0]
-            time_valid_sub = is_subscription_valid(sub)
-            cancel_valid_sub = is_subscription_canceled(sub)
-            valid = time_valid_sub and (not cancel_valid_sub)
-            if valid:
-                item = s_user.subscription_items.filter(
-                    subscription=sub).first()
-                price_item = item.price
-                product_item = price_item.product
-                tier = get_tier_level(product_item.name)
-    print(f"{user.username} | {valid} | {tier}")
-    return valid, tier, s_user
-
-
-def validate_user(s_user, tier, isvalid, user, requiredTier):
-    if user.is_superuser:
-        return True
-    elif not isvalid:
-        return False
-    else:
-        if tier >= requiredTier:
-            return True
-        else:
-            return False
-
 
 # Create your views here.
+
+# subscription handling views
+class SubscriptionHandler(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        u = request.user
+        valid, tier, s_user, item = get_valid_and_tier(u)
+        cancel_at_end = item.subscription.cancel_at_period_end
+        cancel_date = item.subscription.cancel_at
+        return Response({"subscriptionId": item.subscription.subscription_id, "cancel_at_end": cancel_at_end, "cancel_date": cancel_date, "show": cancel_date >= timezone.now()}, status=HTTP_200_OK)
+
+    def post(self, request):
+        u = request.user
+        s_id = request.data.get("sid", None)
+        action = request.data.get("action", None)
+        p_id = request.data.get("pid", None)
+        valid, tier, s_user, item = get_valid_and_tier(u)
+        if s_id:
+            if p_id:
+                if not valid:
+                    return Response({"message": "No valid subscription"})
+                else:
+
+                    if action == "upgrade":
+                        if p_id == item.price.price_id:
+                            return Response({"message": "Cannot update an already existing subscription"}, status=HTTP_400_BAD_REQUEST)
+                        else:
+                            try:
+                                res = stripe.Subscription.modify(item.subscription.subscription_id, items=[
+                                    {"id": item.sub_item_id, "price": p_id}], payment_behavior="error_if_incomplete", proration_behavior="always_invoice")
+                                update_user_subscription(s_user.customer_id)
+                                return Response({"message": "Subscription upgraded"}, status=HTTP_200_OK)
+                            except Exception as e:
+                                print(str(e))
+                                return Response({"message": "Failed upgrade"}, status=HTTP_400_BAD_REQUEST)
+
+                    elif action == "cancel":
+                        try:
+                            if (item.subscription.cancel_at_period_end):
+                                return Response({"message": "Already canceled"}, status=HTTP_400_BAD_REQUEST)
+                            res = stripe.Subscription.modify(
+                                item.subscription.subscription_id, cancel_at_period_end=True)
+                            update_user_subscription(s_user.customer_id)
+                            return Response({"message": "Subscription canceled"}, status=HTTP_200_OK)
+                        except Exception as e:
+                            print(str(e))
+                            return Response({"message": "Failed Cancel"}, status=HTTP_400_BAD_REQUEST)
+                    else:
+                        return Response({"message": "Action not recognized"}, status=HTTP_400_BAD_REQUEST)
+            else:
+                return Response({"message": "Price ID not supplied"}, status=HTTP_400_BAD_REQUEST)
+        else:
+            return Response({"message": "Subscription ID not supplied"}, status=HTTP_400_BAD_REQUEST)
+
+
+###
 
 
 class CustomTokenObtain(TokenObtainPairView):
@@ -168,7 +140,7 @@ class TestSession(APIView):
     def get(self, request, format=None):
         user = request.user
         data = UserSerializer(user).data
-        valid, tier, stripe_user = get_valid_and_tier(user)
+        valid, tier, stripe_user, item = get_valid_and_tier(user)
         data["isValidSub"] = valid
         data["tier"] = tier
         return Response(data)
@@ -360,7 +332,7 @@ class SentimentData(APIView):
 
     def post(self, request):
         user = request.user
-        valid, tier, s_user = get_valid_and_tier(user)
+        valid, tier, s_user, item = get_valid_and_tier(user)
         validation_res = validate_user(s_user, tier, valid, user, 2)
         if not validation_res:
             return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)
@@ -375,7 +347,7 @@ class ChangeData(APIView):
 
     def post(self, request):
         user = request.user
-        valid, tier, s_user = get_valid_and_tier(user)
+        valid, tier, s_user, item = get_valid_and_tier(user)
         validation_res = validate_user(s_user, tier, valid, user, 3)
         if not validation_res:
             return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)
@@ -390,7 +362,7 @@ class ScannerView(APIView):
 
     def post(self, request):
         user = request.user
-        valid, tier, s_user = get_valid_and_tier(user)
+        valid, tier, s_user, item = get_valid_and_tier(user)
         validation_res = validate_user(s_user, tier, valid, user, 1)
         if not validation_res:
             return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)
@@ -581,7 +553,7 @@ class PublicVideoView(APIView):
     def get(self, request):
         try:
             user = request.user
-            valid, tier, s_user = get_valid_and_tier(user)
+            valid, tier, s_user, item = get_valid_and_tier(user)
             validation_res = validate_user(s_user, tier, valid, user, 1)
             if not validation_res:
                 return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)
@@ -658,7 +630,7 @@ class PublicPdfView(APIView):
     def get(self, request):
         try:
             user = request.user
-            valid, tier, s_user = get_valid_and_tier(user)
+            valid, tier, s_user, item = get_valid_and_tier(user)
             validation_res = validate_user(s_user, tier, valid, user, 1)
             if not validation_res:
                 return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)

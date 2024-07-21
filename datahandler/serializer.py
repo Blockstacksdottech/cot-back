@@ -10,7 +10,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.settings import api_settings
 from drf_stripe.serializers import CheckoutRequestSerializer, StripeError
 from drf_stripe.stripe_api.checkout import stripe_api_create_checkout_session
-from .helper import get_or_create_stripe_user
+from .helper import get_or_create_stripe_user, get_valid_and_tier
 
 
 class CustomCheckoutSerializer(CheckoutRequestSerializer):
@@ -318,10 +318,12 @@ class AdminUserSerializer(serializers.ModelSerializer):
 
     details = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
+    sub = serializers.SerializerMethodField()
 
     class Meta:
         model = CustomUser
-        fields = ["id", "username", "is_active", "email", "details", "image"]
+        fields = ["id", "username", "is_active",
+                  "email", "details", "image", "sub"]
 
     def get_details(self, instance):
         d = UserDetails.objects.filter(user=instance).first()
@@ -336,6 +338,10 @@ class AdminUserSerializer(serializers.ModelSerializer):
             return UserImageSerializer(i).data
         else:
             return None
+
+    def get_sub(self, instance):
+        valid, tier, s_user, item = get_valid_and_tier(instance)
+        return {"valid": valid, "tier": tier}
 
 
 class VideoLinksSerializer(serializers.ModelSerializer):

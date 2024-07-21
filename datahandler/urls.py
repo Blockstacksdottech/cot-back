@@ -42,6 +42,8 @@ urlpatterns = [
     path('user-image', UserImageView.as_view(), name='user-image'),
     path("change-password", ChangePasswordView.as_view(),
          name="change-password"),
+    path("subscription-handler", SubscriptionHandler.as_view(),
+         name="subscription-handler"),
     # Admin
     path("userlist", UserBan.as_view(), name="user-ban"),
     path('video-link', VideoLinksAPIView.as_view(), name='video-link'),
