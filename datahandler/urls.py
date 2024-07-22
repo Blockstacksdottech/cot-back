@@ -46,6 +46,7 @@ urlpatterns = [
          name="subscription-handler"),
     # Admin
     path("userlist", UserBan.as_view(), name="user-ban"),
+    path("userdelete", UserDelete.as_view(), name="user-delete"),
     path('video-link', VideoLinksAPIView.as_view(), name='video-link'),
     path('public-video-link', PublicVideoView.as_view(), name='video-link'),
     path('delete-video-link', DeleteVideoLink.as_view(), name='video-link'),

@@ -43,7 +43,7 @@ class SubscriptionHandler(APIView):
         valid, tier, s_user, item = get_valid_and_tier(u)
         cancel_at_end = item.subscription.cancel_at_period_end
         cancel_date = item.subscription.cancel_at
-        return Response({"subscriptionId": item.subscription.subscription_id, "cancel_at_end": cancel_at_end, "cancel_date": cancel_date, "show": cancel_date >= timezone.now()}, status=HTTP_200_OK)
+        return Response({"subscriptionId": item.subscription.subscription_id, "cancel_at_end": cancel_at_end, "cancel_date": cancel_date, "show": cancel_date >= timezone.now() if cancel_date else False}, status=HTTP_200_OK)
 
     def post(self, request):
         u = request.user
@@ -74,9 +74,11 @@ class SubscriptionHandler(APIView):
                         try:
                             if (item.subscription.cancel_at_period_end):
                                 return Response({"message": "Already canceled"}, status=HTTP_400_BAD_REQUEST)
-                            res = stripe.Subscription.modify(
-                                item.subscription.subscription_id, cancel_at_period_end=True)
-                            update_user_subscription(s_user.customer_id)
+                            """ res = stripe.Subscription.modify(
+                                item.subscription.subscription_id) """
+                            res = stripe.Subscription.cancel(item.subscription.subscription_id)
+                            #update_user_subscription(s_user.customer_id)
+                            u.delete()
                             return Response({"message": "Subscription canceled"}, status=HTTP_200_OK)
                         except Exception as e:
                             print(str(e))
@@ -465,6 +467,25 @@ class UserBan(APIView):
             if u:
                 u.is_active = not u.is_active
                 u.save()
+                return Response({}, status=HTTP_200_OK)
+            else:
+                return Response({}, status=HTTP_400_BAD_REQUEST)
+
+        else:
+            return Response({}, status=HTTP_400_BAD_REQUEST)
+
+class UserDelete(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+
+
+    def post(self, request):
+        userId = request.data.get("userid", None)
+        if userId:
+            u = CustomUser.objects.filter(
+                id=userId, is_superuser=False).first()
+            if u:
+                u.delete()
                 return Response({}, status=HTTP_200_OK)
             else:
                 return Response({}, status=HTTP_400_BAD_REQUEST)
