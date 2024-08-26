@@ -1,5 +1,5 @@
 from .models import (
-    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement
+    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement, Article
 )
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -323,7 +323,7 @@ class AdminUserSerializer(serializers.ModelSerializer):
     class Meta:
         model = CustomUser
         fields = ["id", "username", "is_active",
-                  "email", "details", "image", "sub"]
+                  "email", "details", "image", "sub","is_member","date_joined"]
 
     def get_details(self, instance):
         d = UserDetails.objects.filter(user=instance).first()
@@ -391,3 +391,20 @@ class ContactFormSerializer(serializers.Serializer):
     email = serializers.EmailField()
     subject = serializers.CharField(max_length=255)
     message = serializers.CharField()
+
+
+class ArticleSerializer(serializers.ModelSerializer):
+    user = AdminUserSerializer(read_only=True)
+    class Meta:
+        model = Article
+        fields = '__all__'
+        extra_kwargs = {
+            'user': {'required': True}
+        }
+
+    def create(self, validated_data):
+        # Ensure the user is correctly linked when creating an article
+        article = Article.objects.create(**validated_data)
+        return article
+
+    

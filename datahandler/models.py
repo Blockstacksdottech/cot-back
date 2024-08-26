@@ -10,6 +10,7 @@ class CustomUser(AbstractUser):
     name = models.CharField(max_length=255, default="")
     email = models.EmailField(unique=True)
     is_active = models.BooleanField(default=True)
+    is_member = models.BooleanField(default=False)
 
     def __str__(self):
         return self.username
@@ -46,7 +47,18 @@ class UserImage(models.Model):
 
     def __str__(self):
         return self.user.username
+    
+# blog model
+class Article(models.Model):
+    user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
+    title = models.CharField(max_length=255, default="", blank=True)
+    content = models.TextField(default="", blank=True)
+    image = models.ImageField(
+        upload_to='thumbnails/', null=True, blank=True)
+    date = models.DateTimeField(auto_now_add=True)
 
+    def __str__(self):
+        return self.title
 
 class DateInterval(models.Model):
     date = models.DateTimeField()

@@ -4,7 +4,6 @@ asgiref==3.8.1
 asttokens==2.4.1
 async-timeout==4.0.3
 backcall==0.2.0
-backports.zoneinfo==0.2.1
 beautifulsoup4==4.12.3
 billiard==4.2.0
 celery==5.4.0
@@ -41,9 +40,9 @@ jupyter_core==5.7.2
 kombu==5.3.7
 matplotlib-inline==0.1.7
 nest-asyncio==1.6.0
-numpy==1.24.4
+numpy
 packaging==24.0
-pandas==2.0.3
+pandas
 parso==0.8.4
 pickleshare==0.7.5
 pillow==10.4.0

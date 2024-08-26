@@ -14,6 +14,8 @@ router.register("adm-announcement", AdminAnnouncementView,
                 basename="admin-announcement")
 router.register("announcement", PublicAnnouncementView,
                 basename="announcement")
+router.register("blog", ArticleViewSet,
+                basename="blog")
 
 
 urlpatterns = [
@@ -44,8 +46,10 @@ urlpatterns = [
          name="change-password"),
     path("subscription-handler", SubscriptionHandler.as_view(),
          name="subscription-handler"),
+    path("latestdate",getLatestDataDate.as_view(),name="get_latest_date"),
     # Admin
     path("userlist", UserBan.as_view(), name="user-ban"),
+    path("userpromote", UserPromote.as_view(), name="user-promote"),
     path("userdelete", UserDelete.as_view(), name="user-delete"),
     path('video-link', VideoLinksAPIView.as_view(), name='video-link'),
     path('public-video-link', PublicVideoView.as_view(), name='video-link'),

@@ -449,7 +449,50 @@ class UserImageView(APIView):
             return Response(serializer.data, status=HTTP_200_OK)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
+
+class getLatestDataDate(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self,request):
+        try:
+            dt = DateInterval.objects.all().order_by("-date")[0]
+            return Response({"date" : dt.date},status=HTTP_200_OK)
+        except:
+            return Response({}, status=HTTP_400_BAD_REQUEST)
+
 # admin user management
+
+# custom permission
+class IsSuperuserOrMember(permissions.BasePermission):
+    def has_permission(self, request, view):
+        # Allow non-authenticated users to read-only requests (GET, HEAD, OPTIONS)
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # Allow superusers or members to perform write operations
+        return request.user and (request.user.is_superuser or request.user.is_member)
+
+class ArticleViewSet(ModelViewSet):
+    
+    serializer_class = ArticleSerializer
+    permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsSuperuserOrMember]
+
+    def get_queryset(self):
+        # Get the limit from the query parameters
+        limit = self.request.query_params.get('limit', None)
+        
+        try:
+            limit = int(limit)
+            return Article.objects.all()[:limit]
+        except:
+            return Article.objects.all()
+
+        # Return the queryset limited to the specified number of articles
+        
+
+    def perform_create(self, serializer):
+        # Assign the current user to the article
+        serializer.save(user=self.request.user)
 
 
 class UserBan(APIView):
@@ -466,6 +509,32 @@ class UserBan(APIView):
                 id=userId, is_superuser=False).first()
             if u:
                 u.is_active = not u.is_active
+                u.save()
+                return Response({}, status=HTTP_200_OK)
+            else:
+                return Response({}, status=HTTP_400_BAD_REQUEST)
+
+        else:
+            return Response({}, status=HTTP_400_BAD_REQUEST)
+        
+class UserPromote(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        users = CustomUser.objects.filter(is_superuser=False,is_member=True)
+        return Response(AdminUserSerializer(users, many=True).data, status=HTTP_200_OK)
+
+    def post(self, request):
+        userId = request.data.get("userid", None)
+        action = request.data.get("action",None)
+        if userId and action:
+            u = CustomUser.objects.filter(
+                id=userId, is_superuser=False).first()
+            if u:
+                if action == "promote":
+                    u.is_member = True
+                elif action == "demote":
+                    u.is_member = False
                 u.save()
                 return Response({}, status=HTTP_200_OK)
             else:

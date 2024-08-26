@@ -195,6 +195,11 @@ def is_subscription_canceled(subscription):
             return True
         else:
             return False
+    elif subscription.ended_at:
+        if subscription.ended_at <= timezone.now():
+            return True
+        else:
+            return False
     else:
         return False
 
@@ -232,7 +237,7 @@ def get_valid_and_tier(user):
 
 
 def validate_user(s_user, tier, isvalid, user, requiredTier):
-    if user.is_superuser:
+    if user.is_superuser or user.is_member:
         return True
     elif not isvalid:
         return False
