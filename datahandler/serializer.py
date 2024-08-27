@@ -342,6 +342,32 @@ class AdminUserSerializer(serializers.ModelSerializer):
     def get_sub(self, instance):
         valid, tier, s_user, item = get_valid_and_tier(instance)
         return {"valid": valid, "tier": tier}
+    
+class HomeUserSerializer(serializers.ModelSerializer):
+
+    details = serializers.SerializerMethodField()
+    image = serializers.SerializerMethodField()
+  
+
+    class Meta:
+        model = CustomUser
+        fields = ["id", "username", "is_active",
+                  "email", "details", "image","is_member","date_joined"]
+
+    def get_details(self, instance):
+        d = UserDetails.objects.filter(user=instance).first()
+        if not d:
+            d = UserDetails.objects.create(user=instance)
+            d.save()
+        return UserDetailsSerializer(d).data
+
+    def get_image(self, instance):
+        i = UserImage.objects.filter(user=instance).first()
+        if i:
+            return UserImageSerializer(i).data
+        else:
+            return None
+
 
 
 class VideoLinksSerializer(serializers.ModelSerializer):

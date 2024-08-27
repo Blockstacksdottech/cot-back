@@ -90,7 +90,15 @@ class SubscriptionHandler(APIView):
         else:
             return Response({"message": "Subscription ID not supplied"}, status=HTTP_400_BAD_REQUEST)
 
-
+# custom permission
+class IsSuperuserOrMember(permissions.BasePermission):
+    def has_permission(self, request, view):
+        # Allow non-authenticated users to read-only requests (GET, HEAD, OPTIONS)
+        if request.method in permissions.SAFE_METHODS:
+            return True
+        
+        # Allow superusers or members to perform write operations
+        return request.user and (request.user.is_superuser or request.user.is_member)
 ###
 
 
@@ -128,7 +136,7 @@ class Register(APIView):
 
 
 class DataHandler(ModelViewSet):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsSuperuserOrMember]
     http_method_names = ["get"]
     serializer_class = DateSerializer
 
@@ -423,6 +431,25 @@ class ChangePasswordView(APIView):
             return Response({"detail": "Password updated successfully."}, status=HTTP_200_OK)
 
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+    
+class UpdateUsername(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, *args, **kwargs):
+        self.object = request.user
+        newusername = request.data.get("newusername",None)
+
+        if newusername:
+            # Check old password
+            if CustomUser.objects.filter(username=newusername).first():
+                return Response({"message": "taken"}, status=HTTP_400_BAD_REQUEST)
+
+            # Set new password
+            self.object.username = newusername
+            self.object.save()
+            return Response({"detail": "Username updated successfully."}, status=HTTP_200_OK)
+
+        return Response({"message": "username not supplied"}, status=HTTP_400_BAD_REQUEST)
 
 
 class UserImageView(APIView):
@@ -459,18 +486,17 @@ class getLatestDataDate(APIView):
             return Response({"date" : dt.date},status=HTTP_200_OK)
         except:
             return Response({}, status=HTTP_400_BAD_REQUEST)
+        
+class GetTeamMembers(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request):
+        users = CustomUser.objects.filter(is_superuser=False,is_member=True)
+        return Response(HomeUserSerializer(users, many=True).data, status=HTTP_200_OK)
 
 # admin user management
 
-# custom permission
-class IsSuperuserOrMember(permissions.BasePermission):
-    def has_permission(self, request, view):
-        # Allow non-authenticated users to read-only requests (GET, HEAD, OPTIONS)
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        
-        # Allow superusers or members to perform write operations
-        return request.user and (request.user.is_superuser or request.user.is_member)
+
 
 class ArticleViewSet(ModelViewSet):
     
@@ -784,6 +810,7 @@ class ResetPasswordView(APIView):
             serializer.save()
             return Response({"detail": "Password reset successfully."}, status=HTTP_200_OK)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+    
 
 
 class AdminAnnouncementView(ModelViewSet):

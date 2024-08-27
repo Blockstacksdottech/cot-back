@@ -42,8 +42,11 @@ urlpatterns = [
     # User
     path('user-details', UserDetailsView.as_view(), name='user-details'),
     path('user-image', UserImageView.as_view(), name='user-image'),
+    path("team-members",GetTeamMembers.as_view(),name="public-get-team-members"),
     path("change-password", ChangePasswordView.as_view(),
          name="change-password"),
+     path("change-username", UpdateUsername.as_view(),
+         name="change-username"),
     path("subscription-handler", SubscriptionHandler.as_view(),
          name="subscription-handler"),
     path("latestdate",getLatestDataDate.as_view(),name="get_latest_date"),

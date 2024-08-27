@@ -30,10 +30,12 @@ class UserDetails(models.Model):
     full_name = models.CharField(max_length=255, default="", blank=True)
     mobile = models.CharField(max_length=20, default="", blank=True)
     address = models.TextField(default="", blank=True)
+    position = models.TextField(default="", blank=True)
     city = models.CharField(max_length=100, default="", blank=True)
     state = models.CharField(max_length=100, default="", blank=True)
     country = models.CharField(max_length=100, default="", blank=True)
     zip_code = models.CharField(max_length=20, default="", blank=True)
+
 
     def __str__(self):
         return self.user.username
