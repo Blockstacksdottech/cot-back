@@ -816,7 +816,7 @@ class ResetPasswordView(APIView):
 class AdminAnnouncementView(ModelViewSet):
     queryset = Announcement.objects.all()
     serializer_class = AnnouncementSerializer
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsSuperuserOrMember]
     http_method_names = ["get", "post", "delete"]
 
 
