@@ -522,7 +522,7 @@ class ArticleViewSet(ModelViewSet):
 
 
 class UserBan(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsSuperuserOrMember]
 
     def get(self, request):
         users = CustomUser.objects.filter(is_superuser=False)
@@ -570,7 +570,7 @@ class UserPromote(APIView):
             return Response({}, status=HTTP_400_BAD_REQUEST)
 
 class UserDelete(APIView):
-    permission_classes = [permissions.IsAdminUser]
+    permission_classes = [IsSuperuserOrMember]
 
 
 
