@@ -529,6 +529,9 @@ class UserBan(APIView):
         return Response(AdminUserSerializer(users, many=True).data, status=HTTP_200_OK)
 
     def post(self, request):
+        user = request.user
+        if user.is_member:
+            return Response({}, status=HTTP_400_BAD_REQUEST)
         userId = request.data.get("userid", None)
         if userId:
             u = CustomUser.objects.filter(
@@ -570,7 +573,7 @@ class UserPromote(APIView):
             return Response({}, status=HTTP_400_BAD_REQUEST)
 
 class UserDelete(APIView):
-    permission_classes = [IsSuperuserOrMember]
+    permission_classes = [permissions.IsAdminUser]
 
 
 
