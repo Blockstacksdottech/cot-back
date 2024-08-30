@@ -52,6 +52,9 @@ urlpatterns = [
     path("latestdate",getLatestDataDate.as_view(),name="get_latest_date"),
     # Admin
     path("userlist", UserBan.as_view(), name="user-ban"),
+    path("create-team-member", AdmCreateTeamMember.as_view(),name='create-team-member'),
+    path("create-team-member-details", AdmUserDetailsView.as_view(),name='create-team-member-details'),
+    path("create-team-member-image", AdmUserImageView.as_view(),name='create-team-member-image'),
     path("userpromote", UserPromote.as_view(), name="user-promote"),
     path("userdelete", UserDelete.as_view(), name="user-delete"),
     path('video-link', VideoLinksAPIView.as_view(), name='video-link'),

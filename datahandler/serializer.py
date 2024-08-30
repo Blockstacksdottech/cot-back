@@ -433,4 +433,9 @@ class ArticleSerializer(serializers.ModelSerializer):
         article = Article.objects.create(**validated_data)
         return article
 
-    
+
+class TeamMemberSerializer(ModelSerializer):
+    class Meta:
+        model = CustomUser
+        fields = "__all__"
+        extra_kwargs = {'password': {'write_only': True, 'required': True}}

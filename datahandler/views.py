@@ -590,7 +590,77 @@ class UserDelete(APIView):
 
         else:
             return Response({}, status=HTTP_400_BAD_REQUEST)
+        
 
+class AdmCreateTeamMember(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request, format=None):
+        data = request.data
+        print(data)
+        # del temp_data['pin']
+        u = TeamMemberSerializer(data=data)
+        if u.is_valid():
+            u_data = u.save()
+            u_data.set_password(data["password"])
+            u_data.is_member = True
+            u_data.save()
+            return Response(TeamMemberSerializer(u_data).data)
+        else:
+            print(u.error_messages)
+            return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)
+        
+class AdmUserDetailsView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def post(self, request):
+        print("details here")
+        user_id = request.query_params.get("userid",None)
+        u = CustomUser.objects.filter(id=user_id).first()
+        if not u:
+            print("here")
+            print(user_id)
+            print(u)
+            Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+        try:
+            
+            user_details = UserDetails.objects.get(user=u)
+            serializer = UserDetailsSerializer(
+                user_details, data=request.data, partial=True)
+        except UserDetails.DoesNotExist:
+            newdata = request.data 
+            newdata["user"] = u.id
+            serializer = UserDetailsSerializer(data=newdata)
+
+        if serializer.is_valid():
+            serializer.save(user=u)
+            return Response(serializer.data, status=HTTP_200_OK)
+        print(serializer.error_messages)
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+    
+class AdmUserImageView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+
+    def post(self, request):
+        user_id = request.query_params.get("userid",None)
+        u = CustomUser.objects.filter(id=user_id).first()
+        if not u:
+            Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+        try:
+            
+            user_image = UserImage.objects.get(user=u)
+            serializer = UserImageSerializer(
+                user_image, data=request.data, partial=True)
+        except UserImage.DoesNotExist:
+            newdata = request.data 
+            newdata["user"] = u.id
+            serializer = UserImageSerializer(data=newdata)
+
+        if serializer.is_valid():
+            serializer.save(user=u)
+            return Response(serializer.data, status=HTTP_200_OK)
+        return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
 
 class VideoLinksAPIView(APIView):
     permission_classes = [permissions.IsAdminUser]
