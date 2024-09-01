@@ -403,7 +403,7 @@ class CommSignalOverview(APIView):
                 change_data = response_data[symbol][-1]["change"] + entry.pair_pct_change
                 response_data[symbol].append(
                         {"date": entry.date_interval.date.strftime("%y-%m-%d"), "change": change_data, "signal" : get_threshold_signal(change_data)}) """
-        """ for sym in response_data.keys():
+        for sym in response_data.keys():
             current_index = -1
             while True:
                 if current_index < (-1 * len(response_data[sym])):
@@ -415,7 +415,7 @@ class CommSignalOverview(APIView):
                     else:
                         response_data[sym][current_index]["change"] += response_data[sym][current_index + 1]["change"]
                         response_data[sym][current_index]["signal"] =  get_threshold_signal(response_data[sym][current_index]["change"])
-                        current_index -= 1 """
+                        current_index -= 1
         # Convert defaultdict to a regular dict
         response_data = dict(response_data)
 
