@@ -13,6 +13,7 @@ from django.conf import settings
 from urllib.parse import urlparse
 # serializers imports
 from .serializer import *
+import datetime
 
 # models imports
 from .models import *
@@ -283,6 +284,138 @@ class NetSpeculativeCommView(APIView):
                 response_data[symbol].append(
                     {"date": entry.date_interval.date.strftime("%y-%m-%d"), "score": score})
 
+        # Convert defaultdict to a regular dict
+        response_data = dict(response_data)
+
+        return Response(response_data, status=HTTP_200_OK)
+    
+
+def get_threshold_signal(interest):
+    """
+    Determines the signal based on the given interest value.
+
+    Args:
+        interest: The interest value.
+
+    Returns:
+        The signal corresponding to the interest value.
+    """
+
+    signal = None
+
+    if interest >= 0 and interest <= 10:
+        signal = "Neutral"
+    elif interest > 10 and interest <= 30:
+        signal = "Buy"
+    elif interest > 30:
+        signal = "Strong Buy"
+    elif interest >= -10 and interest < 0:
+        signal = "Neutral"
+    elif interest < -10 and interest >= -30:
+        signal = "Sell"
+    elif interest < -30:
+        signal = "Strong Sell"
+    else:
+        raise ValueError("Interest value is out of the expected range.")
+
+    return signal
+
+class NonCommSignalOverview(APIView):
+    def get(self, request):
+        current_year = timezone.now().year
+        data_entries = ProcessedData.objects.filter(
+            date_interval__date__year=current_year).order_by("-date_interval__date")
+        current_year = data_entries[len(data_entries) - 1].date_interval.date.year
+        start_of_year = datetime.datetime(current_year, 1, 1)
+
+        # Calculate the end date for 52 weeks from the start of the year
+        end_of_52_weeks = start_of_year + datetime.timedelta(weeks=52)
+
+        data_entries = ProcessedData.objects.filter(
+            date_interval__date__gte=start_of_year,
+            date_interval__date__lte=end_of_52_weeks
+        ).order_by("date_interval__date")
+        # Dictionary to hold aggregated data
+        response_data = defaultdict(list)
+
+        for entry in data_entries:
+            symbol = entry.pair
+            week_start_date = entry.date_interval.date - \
+                timezone.timedelta(days=entry.date_interval.date.weekday())
+            week_start_str = week_start_date.strftime('%Y-%U')
+
+            # Find if the week already exists in response_data for this symbol
+            """ if (len(response_data[symbol]) == 0): """
+            response_data[symbol].append(
+                        {"date": entry.date_interval.date.strftime("%y-%m-%d"), "change": entry.pair_pct_change, "signal" : get_threshold_signal(entry.pair_pct_change)})
+            """ else:
+                change_data = response_data[symbol][-1]["change"] + entry.pair_pct_change
+                response_data[symbol].append(
+                        {"date": entry.date_interval.date.strftime("%y-%m-%d"), "change": change_data, "signal" : get_threshold_signal(change_data)}) """
+        for sym in response_data.keys():
+            current_index = -1
+            while True:
+                if current_index < (-1 * len(response_data[sym])):
+                    break
+                else:
+                    if current_index == -1:
+                        current_index -= 1
+                        continue
+                    else:
+                        response_data[sym][current_index]["change"] += response_data[sym][current_index + 1]["change"]
+                        response_data[sym][current_index]["signal"] =  get_threshold_signal(response_data[sym][current_index]["change"])
+                        current_index -= 1
+        # Convert defaultdict to a regular dict
+        response_data = dict(response_data)
+
+        return Response(response_data, status=HTTP_200_OK)
+    
+
+class CommSignalOverview(APIView):
+    def get(self, request):
+        current_year = timezone.now().year
+        data_entries = ProcessedData.objects.filter(
+            date_interval__date__year=current_year).order_by("-date_interval__date")
+        current_year = data_entries[len(data_entries) - 1].date_interval.date.year
+        start_of_year = datetime.datetime(current_year, 1, 1)
+
+        # Calculate the end date for 52 weeks from the start of the year
+        end_of_52_weeks = start_of_year + datetime.timedelta(weeks=52)
+
+        data_entries = ProcessedData.objects.filter(
+            date_interval__date__gte=start_of_year,
+            date_interval__date__lte=end_of_52_weeks
+        ).order_by("date_interval__date")
+        # Dictionary to hold aggregated data
+        response_data = defaultdict(list)
+
+        for entry in data_entries:
+            symbol = entry.pair
+            week_start_date = entry.date_interval.date - \
+                timezone.timedelta(days=entry.date_interval.date.weekday())
+            week_start_str = week_start_date.strftime('%Y-%U')
+
+            # Find if the week already exists in response_data for this symbol
+            """ if (len(response_data[symbol]) == 0): """
+            response_data[symbol].append(
+                        {"date": entry.date_interval.date.strftime("%y-%m-%d"), "change": entry.pair_comm_pct_change, "signal" : get_threshold_signal(entry.pair_comm_pct_change)})
+            """ else:
+                change_data = response_data[symbol][-1]["change"] + entry.pair_pct_change
+                response_data[symbol].append(
+                        {"date": entry.date_interval.date.strftime("%y-%m-%d"), "change": change_data, "signal" : get_threshold_signal(change_data)}) """
+        """ for sym in response_data.keys():
+            current_index = -1
+            while True:
+                if current_index < (-1 * len(response_data[sym])):
+                    break
+                else:
+                    if current_index == -1:
+                        current_index -= 1
+                        continue
+                    else:
+                        response_data[sym][current_index]["change"] += response_data[sym][current_index + 1]["change"]
+                        response_data[sym][current_index]["signal"] =  get_threshold_signal(response_data[sym][current_index]["change"])
+                        current_index -= 1 """
         # Convert defaultdict to a regular dict
         response_data = dict(response_data)
 

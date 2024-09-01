@@ -34,6 +34,8 @@ urlpatterns = [
          name='net-speculative'),
     path('crowding_comm_positions', CrowdingPositionsCommView.as_view(),
          name='crowding-positions'),
+    path('general-change-data',NonCommSignalOverview.as_view(),name="general-change-data"),
+    path('general-comm-change-data',CommSignalOverview.as_view(),name="general-change-data"),
     path("checkout", CustomCheckout.as_view(), name="checkout_demo"),
     # new data endpoints
     path("sentiment-data", SentimentData.as_view(), name="sentiment_data"),
