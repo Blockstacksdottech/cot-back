@@ -147,6 +147,10 @@ class DateSerializer(serializers.ModelSerializer):
         # la propriété '.data' est le rendu de notre serializer que nous retournons ici
         return serializer.data
 
+class OnlyDateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DateInterval
+        fields = "__all__"
 
 class DataSerialzier(ModelSerializer):
     class Meta:

@@ -9,6 +9,7 @@ from rest_framework import routers
 
 router = routers.SimpleRouter()
 router.register("data", DataHandler, basename="data-handler")
+router.register("dates", DatesHandler, basename="dates-handler")
 router.register("top", HomePairsView, basename="top pairs")
 router.register("adm-announcement", AdminAnnouncementView,
                 basename="admin-announcement")

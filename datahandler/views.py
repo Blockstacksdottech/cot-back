@@ -142,8 +142,23 @@ class DataHandler(ModelViewSet):
     serializer_class = DateSerializer
 
     def get_queryset(self):
-        return [DateInterval.objects.latest('date')]
+        query_date = self.request.query_params.get("date",None)
+        if query_date:
+            target = DateInterval.objects.filter(date=datetime.datetime.fromisoformat(query_date).date()).first()
+            if target:
+                return [target]
+            else:
+                return [DateInterval.objects.latest('date')]
+        else:
+            return [DateInterval.objects.latest('date')]
+        
+class DatesHandler(ModelViewSet):
+    permission_classes = [IsSuperuserOrMember]
+    http_method_names = ["get"]
+    serializer_class = OnlyDateSerializer
 
+    def get_queryset(self):
+        return DateInterval.objects.all().order_by("-date")
 
 class TestSession(APIView):
     permission_classes = [permissions.IsAuthenticated]

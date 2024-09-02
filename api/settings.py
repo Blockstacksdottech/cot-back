@@ -131,7 +131,7 @@ WSGI_APPLICATION = 'api.wsgi.application'
 """
 
 DATABASES = {
-    'default': {
+    'default':{
         # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
         'ENGINE': 'django.db.backends.postgresql',
         # Or path to database file if using sqlite3.
