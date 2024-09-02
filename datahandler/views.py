@@ -144,7 +144,7 @@ class DataHandler(ModelViewSet):
     def get_queryset(self):
         query_date = self.request.query_params.get("date",None)
         if query_date:
-            target = DateInterval.objects.filter(date=datetime.datetime.strptime(query_date, "%Y-%m-dT%H:%M:%SZ").date()).first()
+            target = DateInterval.objects.filter(date=datetime.datetime.strptime(query_date, "%Y-%m-%dT%H:%M:%SZ").date()).first()
             if target:
                 return [target]
             else:
