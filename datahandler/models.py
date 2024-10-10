@@ -257,15 +257,15 @@ class Announcement(models.Model):
 
 
 class Currency(models.Model):
-    name = models.CharField(max_length=10, unique=True)
+    name = models.CharField(max_length=255, unique=True)
 
     def __str__(self):
         return self.name
 
 class Event(models.Model):
     currency = models.ForeignKey(Currency, related_name='events', on_delete=models.CASCADE)
-    event_code = models.CharField(max_length=10)  # Use 'ev' as event code
-    importance = models.CharField(max_length=10)  # Or create a separate model for importance if needed
+    event_code = models.CharField(max_length=255)  # Use 'ev' as event code
+    importance = models.CharField(max_length=255)  # Or create a separate model for importance if needed
 
     def __str__(self):
         return f"{self.currency.name} - {self.event_code}"
