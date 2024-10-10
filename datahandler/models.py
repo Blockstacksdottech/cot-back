@@ -254,3 +254,40 @@ class Announcement(models.Model):
 
     def __str__(self):
         return self.topic
+
+
+class Currency(models.Model):
+    name = models.CharField(max_length=10, unique=True)
+
+    def __str__(self):
+        return self.name
+
+class Event(models.Model):
+    currency = models.ForeignKey(Currency, related_name='events', on_delete=models.CASCADE)
+    event_code = models.CharField(max_length=10)  # Use 'ev' as event code
+    importance = models.CharField(max_length=10)  # Or create a separate model for importance if needed
+
+    def __str__(self):
+        return f"{self.currency.name} - {self.event_code}"
+
+class EventData(models.Model):
+    event = models.ForeignKey(Event, related_name='event_data', on_delete=models.CASCADE)
+    date = models.DateTimeField()
+    time = models.TimeField()
+    str_date = models.CharField(default="",max_length=255)
+    actual = models.FloatField(null=True)
+    forecast = models.FloatField(null=True)
+    previous = models.FloatField(null=True)
+    surprise = models.FloatField(null=True)
+    trend = models.FloatField(null=True)
+    magnitude = models.FloatField(null=True)
+    score = models.FloatField(null=True)
+    rescaled_score = models.FloatField(null=True)
+    rescaled_trend = models.FloatField(null=True)
+    year = models.IntegerField()
+    month = models.IntegerField()
+    avg_score = models.FloatField(null=True)
+    rescaled_avg_score = models.FloatField(null=True)
+
+    def __str__(self):
+        return f"{self.event.event_code} - {self.date} {self.time}"

@@ -70,4 +70,5 @@ urlpatterns = [
          name='request-password-reset'),
     path('reset-password', ResetPasswordView.as_view(), name='reset-password'),
     path('contact', ContactFormView.as_view(), name='contact-form'),
+    path("fundamental",CurrencyEventDataView.as_view(),name='fondamental-view')
 ]

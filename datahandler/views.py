@@ -1070,3 +1070,17 @@ class ContactFormView(APIView):
 
             return Response({'message': 'Email sent successfully'}, status=HTTP_200_OK)
         return Response(serializer.errors, status=HTTP_400_BAD_REQUEST)
+
+
+class CurrencyEventDataView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    def get(self, request):
+        user = request.user
+        if not (user.is_superuser or user.is_member):
+            valid, tier, s_user, item = get_valid_and_tier(user)
+            validation_res = validate_user(s_user, tier, valid, user, 1)
+            if not validation_res:
+                return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)
+        currencies = Currency.objects.all()
+        serializer = CurrencyEventDataSerializer(currencies, many=True, context={'request': request})
+        return Response(serializer.data, status=HTTP_200_OK)

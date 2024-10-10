@@ -1,5 +1,5 @@
 from .models import (
-    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement, Article
+    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement, Article,Currency,Event,EventData
 )
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -443,3 +443,51 @@ class TeamMemberSerializer(ModelSerializer):
         model = CustomUser
         fields = "__all__"
         extra_kwargs = {'password': {'write_only': True, 'required': True}}
+
+
+class EventDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = EventData
+        fields = "__all__"
+
+class EventSerializer(serializers.ModelSerializer):
+    data = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Event
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop('context', None).get('request', None)
+        super(EventSerializer, self).__init__(*args, **kwargs)
+
+    def get_data(self, instance):
+        if self.context['request'] and (self.context['request'].user.is_superuser or self.context['request'].user.is_member) :
+            # Check for 'latest' GET parameter
+            latest_param = self.context['request'].query_params.get('latest', None)
+            if latest_param and latest_param.lower() == 'true':
+                # Return only the latest event data if 'latest=true' is provided
+                latest_event_data = instance.event_data.order_by('-date', '-time').first()
+                if latest_event_data:
+                    return EventDataSerializer(latest_event_data).data
+                return None
+            else:
+                # Return all event data if 'latest' is not specified or false
+                return EventDataSerializer(instance.event_data.all(), many=True).data
+        else:
+            # Return only the latest event data if the user is not a superuser
+            latest_event_data = instance.event_data.order_by('-date', '-time').first()
+            if latest_event_data:
+                return EventDataSerializer(latest_event_data).data
+            return None
+
+class CurrencyEventDataSerializer(serializers.ModelSerializer):
+    latest_events = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Currency
+        fields = ['name', 'latest_events']
+
+    def get_latest_events(self, obj):
+        latest_events = Event.objects.filter(currency = obj).all()
+        return EventSerializer(latest_events,many=True,context={'request': self.context['request']}).data
