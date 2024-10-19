@@ -4,7 +4,7 @@ import datetime
 import re
 import numpy as np
 import pandas as pd
-from .events_const import final_values,target
+from .events_const import final_values,target,zone_mapping
 
 START_DATE = "01/01/2020"
 
@@ -45,6 +45,10 @@ def get_month_range(start_date, end_date):
     # Increment the start date to the next month
     start_date = start_date + datetime.timedelta(days=31)
     start_date = start_date.replace(day=1)
+  
+  current_date = get_current_date()
+  if current_date != month_range[-1]:
+    month_range.append(current_date)
 
   return month_range
 
@@ -82,34 +86,42 @@ def fetch_data():
 
 # Function to extract numeric values using regex and replace None with 0
 def extract_numeric(value):
-    if value is None or value in ['None', 'N/A']:
-        return 0  # Handle None or N/A values by replacing them with 0
-    
-    value = str(value).replace(',', '')  # Remove commas if present
+  if value is None or value in ['None', 'N/A']:
+    return 0  # Handle None or N/A values by replacing them with 0
 
-    # Regex to extract numeric part
-    match = re.search(r'(\d+\.?\d*)', value)
-    if match:
-        number = float(match.group(1))
-        
-        # Handle suffixes
-        if 'K' in value:
-            return number * 1000
-        elif 'M' in value:
-            return number * 1000000
-        elif 'B' in value:
-            return number * 1000000000
-        elif '%' in value:
-            return number / 100  # Convert percentage to decimal
-        
-        return number  # Return the extracted number as float
-    
-    return 0  # Return 0 if no number is found
+  value = str(value).replace(',', '')  # Remove commas if present
 
-# The function to filter data based on the query and return ordered results
-def filter_data( target_currencies, combined_df):
-    
+  # Regex to extract numeric part, including negative sign
+  match = re.search(r'(-?\d+\.?\d*)', value)
+  if match:
+    number = float(match.group(1))
 
+    # Handle suffixes
+    if 'K' in value:
+      return number * 1000
+    elif 'M' in value:
+      return number * 1000000
+    elif 'B' in value:
+      return number * 1000000000
+    elif '%' in value:
+      return number / 100  # Convert percentage to decimal
+
+    return number  # Return the extracted number as float
+
+  return 0  # Return 0 if no number is found
+
+def filter_with_event(df,query,t):
+    options = final_values[query]
+    if t in options.keys():
+        q = options[t]
+    else:
+        q = options['all']
+    test_data = df[df['currency'] == t]
+    test_data = test_data[test_data['importance'].isin(['low','medium','high'])]
+    filtered_df = test_data[test_data['event'].str.contains(q, case=False)]
+    return filtered_df
+
+def filter_data(target_currencies, combined_df):
     # Create a dictionary to store results for each currency
     all_results = {}
 
@@ -129,21 +141,41 @@ def filter_data( target_currencies, combined_df):
 
             # Further filter for 'importance' levels (if needed)
             test_data = test_data[test_data['importance'].isin(['low', 'medium', 'high'])]
+            test_data = test_data[test_data['zone'].isin([zone_mapping[currency]])]
 
             # Apply the regex filter on the 'event' column
             filtered_df = test_data[test_data['event'].str.contains(q, case=False, regex=True)]
             filtered_df['time'] = filtered_df['time'].replace('Tentative', '00:00')
-            filtered_df['time'] = filtered_df['time'].replace('', '00:00')
             filtered_df['datetime'] = pd.to_datetime(filtered_df['date'] + ' ' + filtered_df['time'], format='%d/%m/%Y %H:%M')
             filtered_df['ev'] = k
+            filtered_df = filtered_df.sort_values(by='date')
+            # Order the filtered results by date
+            filtered_df = filtered_df.sort_values(by='datetime')
+
+            # Apply the extract_numeric function to clean up the values
+            filtered_df['num_actual'] = filtered_df['actual'].apply(extract_numeric)
+            filtered_df['num_forecast'] = filtered_df['forecast'].apply(extract_numeric)
+            filtered_df['num_previous'] = filtered_df['previous'].apply(extract_numeric)
+            # Shift the 'previous' column to get the value from the prior row (previous_previous)
+            filtered_df['previous_previous'] = filtered_df['num_previous'].shift(1)
+            #print(filtered_df['event'].unique().tolist())
+            #print(filtered_df.tail())
+            # Now calculate percentage changes for actual and forecast based on previous
+            filtered_df = calculate_percentage_changes(filtered_df)
             temp_data.append(filtered_df)
-        
+
         combined_result = combine_dataframes(temp_data)
         # Order the filtered results by date
         combined_result = combined_result.sort_values(by='date')
-        combined_result['actual'] = combined_result['actual'].apply(extract_numeric)
-        combined_result['forecast'] = combined_result['forecast'].apply(extract_numeric)
-        combined_result['previous'] = combined_result['previous'].apply(extract_numeric)
+
+        # Apply the extract_numeric function to clean up the values
+        #combined_result['num_actual'] = combined_result['actual'].apply(extract_numeric)
+        #combined_result['num_forecast'] = combined_result['forecast'].apply(extract_numeric)
+        #combined_result['num_previous'] = combined_result['previous'].apply(extract_numeric)
+         # Shift the 'previous' column to get the value from the prior row (previous_previous)
+        #df['previous_previous'] = df['num_previous'].shift(1)
+        # Now calculate percentage changes for actual and forecast based on previous
+        #combined_result = calculate_percentage_changes(combined_result)
 
         # Store the results for the current currency if any are found
         if not combined_result.empty:
@@ -151,16 +183,44 @@ def filter_data( target_currencies, combined_df):
 
     return all_results
 
+def calculate_percentage_changes(df):
+    """Calculate percentage change for actual, forecast, and previous based on previous and previous_previous."""
+    
+    def calc_percentage_change(current, previous):
+        """Helper function to calculate percentage change."""
+        if previous != 0:  # Avoid division by zero
+            return ((current - previous) / abs(previous))
+        return 0  # If previous is 0, return 0 to avoid errors
+
+
+    # Calculate percentage change for 'actual' and 'forecast' based on 'previous'
+    df['actual_percentage'] = df.apply(
+        lambda row: calc_percentage_change(row['num_actual'], row['num_previous']) if "%" not in str(row['actual']) else row['num_actual'], axis=1
+    )
+    
+    df['forecast_percentage'] = df.apply(
+        lambda row: calc_percentage_change(row['num_forecast'], row['num_previous']) if "%" not in str(row['forecast'])  else row['num_forecast'], axis=1
+    )
+    
+   
+    
+    # Calculate the percentage change for 'previous' based on 'previous_previous'
+    df['previous_percentage'] = df.apply(
+        lambda row: calc_percentage_change(row['num_previous'], row['previous_previous']) if pd.notnull(row['previous_previous']) and "%" not in str(row['previous'])  else row['num_previous'], axis=1
+    )
+
+    return df
+
 def get_current_year():
   """Returns the current year as an integer."""
   return datetime.datetime.now().year
 
 def calculate_and_rescale_score(df):
     # Surprise Component: Actual - Forecast
-    df['Surprise'] = df['actual'] - df['forecast']
+    df['Surprise'] = df['actual_percentage'] - df['forecast_percentage']
     
     # Trend Component: Actual - Previous
-    df['Trend'] = df['actual'] - df['previous']
+    df['Trend'] = df['actual_percentage'] - df['previous_percentage']
     
     # Magnitude Component: |Surprise| + |Trend|
     df['Magnitude'] = np.abs(df['Surprise']) + np.abs(df['Trend'])
@@ -265,9 +325,12 @@ def save_analyzed_data(analyzed_result):
                     date=row['datetime'],
                     str_date=row['date'],
                     time=row['time'],
-                    actual=row['actual'] if row['actual'] is not None else 0.0,
-                    forecast=row['forecast'] if row['forecast'] is not None else 0.0,
-                    previous=row['previous'] if row['previous'] is not None else 0.0,
+                    actual=row['num_actual'] if row['num_actual'] is not None else 0.0,
+                    forecast=row['num_forecast'] if row['num_forecast'] is not None else 0.0,
+                    previous=row['num_previous'] if row['num_previous'] is not None else 0.0,
+                    actual_perc=row['actual_percentage'] if row['actual_percentage'] is not None else 0.0,
+                    forecast_perc=row['forecast_percentage'] if row['forecast_percentage'] is not None else 0.0,
+                    previous_perc=row['previous_percentage'] if row['previous_percentage'] is not None else 0.0,
                     surprise=row['Surprise'] if row['Surprise'] is not None else 0.0,
                     trend=row['Trend'] if row['Trend'] is not None else 0.0,
                     magnitude=row['Magnitude'] if row['Magnitude'] is not None else 0.0,

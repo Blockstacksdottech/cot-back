@@ -100,6 +100,24 @@ class IsSuperuserOrMember(permissions.BasePermission):
         
         # Allow superusers or members to perform write operations
         return request.user and (request.user.is_superuser or request.user.is_member)
+    
+class IsCustomPremiumData(permissions.BasePermission):
+    def has_permission(self, request, view):
+        # Allow non-authenticated users to read-only requests (GET, HEAD, OPTIONS)
+        u = request.user
+        if request.user:
+            if request.user.is_superuser or request.user.is_member:
+                return True
+            else:
+                valid, tier, s_user, item = get_valid_and_tier(u)
+                if valid and tier >= 3:
+                    return True
+        else:
+            return False
+        
+        
+        # Allow superusers or members to perform write operations
+        return request.user and (request.user.is_superuser or request.user.is_member)
 ###
 
 
@@ -151,6 +169,18 @@ class DataHandler(ModelViewSet):
                 return [DateInterval.objects.latest('date')]
         else:
             return [DateInterval.objects.latest('date')]
+        
+class AllDataHandler(ModelViewSet):
+    permission_classes = [IsCustomPremiumData]
+    http_method_names = ["get"]
+    serializer_class = DateSerializer
+
+    def get_queryset(self):
+        year = self.request.query_params.get("year",None)
+        
+        if not year:
+            year = DateInterval.objects.latest('date').date.year
+        return DateInterval.objects.filter(date__year=year).order_by("date")
         
 class DatesHandler(ModelViewSet):
     permission_classes = [IsSuperuserOrMember]

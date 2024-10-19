@@ -46,7 +46,35 @@ final_values = {
         "EUR" : r"^HCOB Eurozone Services PMI  \(",
         "MXN" : r"^S&P Global Mexico Services PMI  \(",
         "USD" : r"^S&P Global Services PMI  \(",
+    },
+    "retail" : {
+        "all" : r"^Retail Sales \(MoM\)  \(",
+        "USD" : r"^Retail Control \(MoM\)  \(",
+        "JPY" : r"^Retail Sales \(YoY\)  \(",
+        "CHF" : r"^Retail Sales \(YoY\)  \(",
+        "NZD" : r"^Retail Sales \(QoQ\)  \(",
+
+    },
+    "ppi" : {
+        "all" : r"^PPI \(MoM\)  \(",
+        "GBP" : r"^PPI Output \(MoM\)  \(",
+        "CAD" : r"^IPPI \(MoM\)  \(",
+        "AUD" : r"^PPI \(QoQ\)  \(",
+        "NZD" : r"^PPI Output \(QoQ\)  \(",
+
     }
 }
 
 target = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'CHF', 'NZD', 'MXN', 'AUD']
+
+zone_mapping = {
+    "EUR" : "euro zone",
+    'USD' : 'united states',
+    "GBP" : 'united kingdom',
+    "JPY" : 'japan',
+    "CAD" : 'canada',
+    "CHF" : 'switzerland',
+    "NZD" : 'new zealand',
+    "MXN" : 'mexico',
+    "AUD" : 'australia'
+}
