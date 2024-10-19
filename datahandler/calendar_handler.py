@@ -5,6 +5,7 @@ import re
 import numpy as np
 import pandas as pd
 from .events_const import final_values,target,zone_mapping
+import time
 
 START_DATE = "01/01/2020"
 
@@ -79,7 +80,14 @@ def fetch_data():
     all_data = []
     for i in range(len(arr) - 1):
         print(arr[i])
-        data = investpy.economic_calendar(from_date=arr[i],to_date=arr[i+1])
+        while True:
+            try:
+                data = investpy.economic_calendar(from_date=arr[i],to_date=arr[i+1])
+                break
+            except Exception as e:
+                print("Failed Fetching data retrying in 5 sec")
+                time.sleep(5)
+
         all_data.append(data)
     combined = combine_dataframes(all_data)
     return combined
