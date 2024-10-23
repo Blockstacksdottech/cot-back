@@ -62,6 +62,19 @@ final_values = {
         "AUD" : r"^PPI \(QoQ\)  \(",
         "NZD" : r"^PPI Output \(QoQ\)  \(",
 
+    },
+    "interest" : {
+        "all" : r"^RBA Interest Rate Decision  \(",
+        "AUD" : r"^RBA Interest Rate Decision  \(",
+        "MXN" : r"^Interest Rate Decision",
+        "NZD" : r"^RBNZ Interest Rate Decision",
+        "CHF" : r"^SNB Interest Rate Decision  \(",
+        "JPY" : r"^BoJ Interest Rate Decision",
+        "CAD" : r"^BoC Interest Rate Decision",
+        "GBP" : r"^BoE Interest Rate Decision  \(",
+        "EUR" : r"^ECB Interest Rate Decision  \(",
+        "USD" : r"^Fed Interest Rate Decision",
+
     }
 }
 
