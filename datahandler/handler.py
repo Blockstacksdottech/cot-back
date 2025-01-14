@@ -4,6 +4,7 @@ import numpy as np
 import json
 from .models import DateInterval, Data, GeneralData, ProcessedData
 from django.utils.timezone import make_aware
+from datetime import datetime
 
 symbol_mapping = {
     'USD INDEX - ICE FUTURES U.S.': 'USD',
@@ -954,7 +955,7 @@ def regroup_by_symbol(important_data):
 
 def execute():
     start_year = 2019
-    end_year = 2024
+    end_year = datetime.now().year
     final_data = main(start_year, end_year)
     analyzed_data = filter_and_analyze_legacy_data(final_data)
     general_headers = [
