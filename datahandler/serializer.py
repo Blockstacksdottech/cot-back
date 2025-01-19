@@ -1,5 +1,5 @@
 from .models import (
-    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement, Article,Currency,Event,EventData
+    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement, Article,Currency,Event,EventData,Symbol,Seasonality
 )
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -491,3 +491,34 @@ class CurrencyEventDataSerializer(serializers.ModelSerializer):
     def get_latest_events(self, obj):
         latest_events = Event.objects.filter(currency = obj).all()
         return EventSerializer(latest_events,many=True,context={'request': self.context['request']}).data
+    
+class AdminSeasonalitySerializer(serializers.ModelSerializer):
+    seasonalities = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Symbol
+        fields = ['name', 'trend', 'seasonalities']
+
+    def get_seasonalities(self, obj):
+        return [
+            {
+                "year": s.year,
+                "month": s.month,
+                "value": s.value
+            }
+            for s in obj.seasonalities.all()
+        ]
+
+
+# User Serializer: Includes only the current month
+class UserSeasonalitySerializer(serializers.ModelSerializer):
+    symbol = serializers.StringRelatedField()
+    trend = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Seasonality
+        fields = ['symbol', 'year', 'month', 'value', 'trend']
+
+    def get_trend(self, obj):
+        return obj.symbol.trend
+

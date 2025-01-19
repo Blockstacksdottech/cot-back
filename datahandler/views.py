@@ -189,6 +189,8 @@ class DatesHandler(ModelViewSet):
 
     def get_queryset(self):
         return DateInterval.objects.all().order_by("-date")
+    
+
 
 class TestSession(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -201,6 +203,34 @@ class TestSession(APIView):
         data["tier"] = tier
         return Response(data)
 
+class AdminSeasonalityViewSet(ModelViewSet):
+    permission_classes = [IsSuperuserOrMember]
+    http_method_names = ["get"]
+    serializer_class = AdminSeasonalitySerializer
+
+    def get_queryset(self):
+        current_year = datetime.datetime.now().year
+        return Symbol.objects.prefetch_related(
+            'seasonalities'
+        ).filter(seasonalities__year=current_year).distinct()
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.get_queryset()
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
+
+class UserSeasonalityView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        current_year = datetime.datetime.now().year
+        current_month = datetime.datetime.now().month
+        seasonality_data = Seasonality.objects.filter(
+            year=current_year,
+            month=current_month
+        ).select_related('symbol')
+        serializer = UserSeasonalitySerializer(seasonality_data, many=True)
+        return Response(serializer.data)
 
 class SentimentScoreView(APIView):
     def get(self, request):

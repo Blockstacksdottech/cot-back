@@ -30,6 +30,11 @@ app.conf.beat_schedule = {
         'schedule': crontab(minute='*/10'),
         'args': (),
     },
+    'seasonality-task': {
+        'task': 'datahandler.tasks.fetch_seasonality',
+        'schedule': crontab(hour=0, minute=0),
+        'args': (),
+    },
 }
 
 

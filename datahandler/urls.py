@@ -18,6 +18,7 @@ router.register("announcement", PublicAnnouncementView,
                 basename="announcement")
 router.register("blog", ArticleViewSet,
                 basename="blog")
+router.register("adm-seasonality",AdminSeasonalityViewSet,basename='admin-seasonality')
 
 
 urlpatterns = [
@@ -71,5 +72,6 @@ urlpatterns = [
          name='request-password-reset'),
     path('reset-password', ResetPasswordView.as_view(), name='reset-password'),
     path('contact', ContactFormView.as_view(), name='contact-form'),
-    path("fundamental",CurrencyEventDataView.as_view(),name='fondamental-view')
+    path("fundamental",CurrencyEventDataView.as_view(),name='fondamental-view'),
+    path("user-seasonality",UserSeasonalityView.as_view(),name="user-seasonality")
 ]

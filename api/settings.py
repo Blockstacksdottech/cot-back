@@ -26,7 +26,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = 'django-insecure-h&y1423@xer76*1x=_s8a0_-a=l&v9itxcifs=j^e_8eks&xon'
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = False
 
 CSRF_TRUSTED_ORIGINS = ['http://194.164.72.71',
                         'https://frantzdytradingco.com', "http://127.0.0.1"]

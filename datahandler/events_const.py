@@ -91,3 +91,15 @@ zone_mapping = {
     "MXN" : 'mexico',
     "AUD" : 'australia'
 }
+
+weights = {
+    "gdp": 0.20,              # Broad measure of economic health
+    "cpi": 0.25,              # Direct link to inflation and central bank policy decisions
+    "unemployment": 0.10,     # Labor market health but less dynamic than employment change
+    "employment": 0.20,       # High-frequency labor market indicator
+    "mpmi": 0.07,             # Manufacturing PMI: sector-specific indicator
+    "spmi": 0.08,             # Services PMI: significant in service-heavy economies
+    "retail": 0.10,           # Retail Sales MoM: critical for consumer spending
+    "ppi": 0.05,              # Producer Price Index: important for understanding inflation trends
+    "interest": 0.05          # Interest Rate: significant for monetary policy but less frequent
+}

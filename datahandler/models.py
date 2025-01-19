@@ -294,3 +294,24 @@ class EventData(models.Model):
 
     def __str__(self):
         return f"{self.event.event_code} - {self.date} {self.time}"
+    
+
+class Symbol(models.Model):
+    name = models.CharField(max_length=10, unique=True)  # e.g., AUDCAD, AUDJPY
+    trend = models.FloatField()  # e.g., -3.22
+
+    def __str__(self):
+        return self.name
+
+
+class Seasonality(models.Model):
+    symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE, related_name='seasonalities')
+    year = models.IntegerField()  # Year of the data
+    month = models.IntegerField()  # Month (1 to 12)
+    value = models.FloatField()  # Seasonality value for the month
+
+    class Meta:
+        unique_together = ('symbol', 'year', 'month')  # Ensure no duplicate entries
+
+    def __str__(self):
+        return f"{self.symbol.name} - {self.year} - Month {self.month}"

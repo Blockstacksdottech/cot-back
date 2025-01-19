@@ -4,7 +4,7 @@ import datetime
 import re
 import numpy as np
 import pandas as pd
-from .events_const import final_values,target,zone_mapping
+from .events_const import final_values,target,zone_mapping,weights
 import time
 
 START_DATE = "01/01/2020"
@@ -174,7 +174,7 @@ def filter_data(target_currencies, combined_df):
 
         combined_result = combine_dataframes(temp_data)
         # Order the filtered results by date
-        combined_result = combined_result.sort_values(by='date')
+        combined_result = combined_result.sort_values(by='datetime')
 
         # Apply the extract_numeric function to clean up the values
         #combined_result['num_actual'] = combined_result['actual'].apply(extract_numeric)
@@ -308,7 +308,74 @@ def calculate_and_rescale_score(df):
     return df
 
 
+def calculate_score_with_weights(df):
+    """
+    Calculate scores using weights for each indicator.
 
+    Args:
+        df (pd.DataFrame): DataFrame containing forecast, actual, and indicator columns.
+
+    Returns:
+        pd.DataFrame: DataFrame with calculated scores and rescaled scores.
+    """
+    # Define weights for each indicator
+    
+
+    # Ensure weights sum to 1 for consistent scoring
+    
+
+    # Calculate score based on (forecast - actual) * weight
+    df['Score'] = df.apply(
+        lambda row: (row['forecast_percentage'] - row['actual_percentage']) * weights.get(row['ev'], 0), axis=1
+    )
+    df['Surprise'] = df['actual_percentage'] - df['forecast_percentage']
+    
+    # Trend Component: Actual - Previous
+    df['Trend'] = df['actual_percentage'] - df['previous_percentage']
+    
+    # Magnitude Component: |Surprise| + |Trend|
+    df['Magnitude'] = np.abs(df['Surprise']) + np.abs(df['Trend'])
+
+    # Normalize the Score to the range of -20 to 20
+    min_score = df['Score'].min()
+    max_score = df['Score'].max()
+
+    # Handle edge case where all scores are the same
+    if max_score - min_score == 0:
+        df['Rescaled Score'] = 0  # or you can set it to np.nan
+    else:
+        # Map scores to -20 to 20
+        df['Rescaled Score'] = -20 + ((df['Score'] - min_score) * (40)) / (max_score - min_score)
+
+    # Round the Rescaled Score to 2 decimal places
+    df['Rescaled Score'] = df['Rescaled Score'].round(2)
+
+    # Add year and month columns for grouping
+    df['year'] = df['datetime'].dt.year
+    df['month'] = df['datetime'].dt.month
+
+    # Calculate avg_score grouped by indicator and month
+    new_score = df.groupby(['event', 'month'])['Score'].mean().reset_index()
+    new_score.rename(columns={'Score': 'avg_score'}, inplace=True)
+    df = pd.merge(df, new_score, on=['event', 'month'], how='left')
+
+    # Normalize the avg_score to -20 to 20
+    min_avg_score = df['avg_score'].min()
+    max_avg_score = df['avg_score'].max()
+
+    # Handle edge case where all avg_score values are the same
+    if max_avg_score - min_avg_score == 0:
+        df['rescaled_avg_score'] = 0  # or you can set it to np.nan
+    else:
+        # Map avg_score to -20 to 20
+        df['rescaled_avg_score'] = -20 + ((df['avg_score'] - min_avg_score) * (40)) / (max_avg_score - min_avg_score)
+
+    # Round the rescaled avg_score to 2 decimal places
+    df['rescaled_avg_score'] = df['rescaled_avg_score'].round(2)
+    df['Rescaled Trend'] = 0 
+    df['Trend'] = 0
+
+    return df
 
 def save_analyzed_data(analyzed_result):
     for currency_name, df in analyzed_result.items():
@@ -357,6 +424,7 @@ def save_analyzed_data(analyzed_result):
 def main():
     print("#### Fetching Data ####")
     combined = fetch_data()
+    combined = combined.drop_duplicates(subset='id')
     print("### Filtering ###")
     res = filter_data(target,combined)
     analyzed_result = {}
@@ -364,7 +432,7 @@ def main():
     for curr in target:
         curr_data = res[curr]
         sorted_data = curr_data.sort_values('datetime')
-        analyzed = calculate_and_rescale_score(sorted_data)
+        analyzed = calculate_score_with_weights(sorted_data)
         analyzed_result[curr] = analyzed
     print("### Saving ###")
     save_analyzed_data(analyzed_result)
