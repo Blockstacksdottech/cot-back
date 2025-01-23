@@ -128,16 +128,24 @@ class MarketDataHandler:
 
     def calculate_trend(self, df):
         """
-        Calculate the trend based on the last 3 weeks of data.
+        Calculate the trend based on the 3 weeks prior to the last week of data.
 
         Args:
             df (pd.DataFrame): DataFrame containing weekly data.
 
         Returns:
-            float: Trend as a sum of the % change over the last 3 weeks.
+            float: Trend as a sum of the % change over the specified weeks.
         """
+        # Calculate weekly percentage change
         df["weekly_change"] = self.calculate_percentage_change(df["c"], 1)
-        return df["weekly_change"].iloc[-3:].sum()
+        
+        # Exclude the last week
+        if len(df) < 4:
+            # Not enough data to calculate the trend
+            return 0.0
+
+        # Sum the percentage change for the three weeks prior to the last week
+        return df["weekly_change"].iloc[-4:-1].sum()
 
     def analyze_symbol(self, symbol, symbol_id):
         """
