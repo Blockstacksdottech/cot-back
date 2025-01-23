@@ -11,6 +11,7 @@ from rest_framework_simplejwt.settings import api_settings
 from drf_stripe.serializers import CheckoutRequestSerializer, StripeError
 from drf_stripe.stripe_api.checkout import stripe_api_create_checkout_session
 from .helper import get_or_create_stripe_user, get_valid_and_tier
+import math
 
 
 class CustomCheckoutSerializer(CheckoutRequestSerializer):
@@ -504,7 +505,7 @@ class AdminSeasonalitySerializer(serializers.ModelSerializer):
             {
                 "year": s.year,
                 "month": s.month,
-                "value": s.value
+                "value": 0 if not math.isfinite(s.value) else s.value  # Handle NaN and Infinity
             }
             for s in obj.seasonalities.all()
         ]

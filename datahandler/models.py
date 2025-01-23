@@ -1,6 +1,9 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 import uuid
+from django.db.models.signals import pre_save
+from django.dispatch import receiver
+import math
 
 # Create your models here.
 
@@ -310,8 +313,15 @@ class Seasonality(models.Model):
     month = models.IntegerField()  # Month (1 to 12)
     value = models.FloatField()  # Seasonality value for the month
 
+    
+
     class Meta:
         unique_together = ('symbol', 'year', 'month')  # Ensure no duplicate entries
 
     def __str__(self):
         return f"{self.symbol.name} - {self.year} - Month {self.month}"
+
+@receiver(pre_save, sender=Seasonality)
+def validate_seasonality(sender, instance, **kwargs):
+    if not math.isfinite(instance.value):
+        instance.value = 0  # Replace with a default value
