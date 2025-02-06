@@ -209,10 +209,23 @@ class AdminSeasonalityViewSet(ModelViewSet):
     serializer_class = AdminSeasonalitySerializer
 
     def get_queryset(self):
-        current_year = datetime.datetime.now().year
+        # Get the 'year' query parameter from the request
+        year = self.request.query_params.get('year')
+        
+        
+        # If 'year' is not provided, default to the current year
+        if year is None:
+            year = datetime.datetime.now().year
+        else:
+            # Convert the year to an integer
+            year = int(year)
+
+        print(year)
+        
+        # Filter the queryset based on the year
         return Symbol.objects.prefetch_related(
             'seasonalities'
-        ).filter(seasonalities__year=current_year).distinct()
+        ).filter(seasonalities__year=year).distinct()
 
     def list(self, request, *args, **kwargs):
         queryset = self.get_queryset()

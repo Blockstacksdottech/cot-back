@@ -36,6 +36,8 @@ symbol_id_list = {'AUDCAD': '8',
  'GBPAUD': '107'}
 
 
+
+
 class MarketDataHandler:
     """
     A class to handle fetching and analyzing market data for multiple symbols.
@@ -91,7 +93,7 @@ class MarketDataHandler:
         df["human_readable_time"] = pd.to_datetime(df["t"], unit="s")
         return df.sort_values(by="t", ascending=True).reset_index(drop=True)
 
-    def calculate_seasonality(self, df):
+    def calculate_seasonality(self, df,year):
         """
         Calculate seasonality based on the last 5 full years of data for each month.
 
@@ -109,7 +111,7 @@ class MarketDataHandler:
         df["month"] = df["human_readable_time"].dt.month
 
         # Get the current year and month
-        current_year = datetime.now().year
+        current_year = year
         current_month = datetime.now().month
 
         # Filter data to include only the last 5 full years (excluding the current year)
@@ -126,7 +128,7 @@ class MarketDataHandler:
 
         return seasonality
 
-    def calculate_trend(self, df):
+    def calculate_trend(self, df,year):
         """
         Calculate the trend based on the 3 weeks prior to the last week of data.
 
@@ -147,7 +149,7 @@ class MarketDataHandler:
         # Sum the percentage change for the three weeks prior to the last week
         return df["weekly_change"].iloc[-4:-1].sum()
 
-    def analyze_symbol(self, symbol, symbol_id):
+    def analyze_symbol(self, symbol, symbol_id,year):
         """
         Analyze a single symbol to calculate seasonality and trend.
 
@@ -160,15 +162,15 @@ class MarketDataHandler:
         """
         # Adjust the from_timestamp to fetch 6 years of data
         to_timestamp = int(datetime.now().timestamp())
-        from_timestamp = int((datetime.now() - timedelta(days=6 * 365)).timestamp())
+        from_timestamp = int((datetime.now() - timedelta(days=15 * 365)).timestamp())
 
         # Fetch monthly data
         monthly_data = self.fetch_data(symbol_id, "1M", from_timestamp, to_timestamp)
-        seasonality = self.calculate_seasonality(monthly_data)
+        seasonality = self.calculate_seasonality(monthly_data,year)
 
         # Fetch weekly data
         weekly_data = self.fetch_data(symbol_id, "1W", from_timestamp, to_timestamp)
-        trend = self.calculate_trend(weekly_data)
+        trend = self.calculate_trend(weekly_data,year)
 
         return {
             "symbol": symbol,
@@ -176,23 +178,26 @@ class MarketDataHandler:
             "trend": trend,
         }
 
-    def analyze_all_symbols(self):
+    def analyze_all_symbols(self,start_year):
         """
         Analyze all symbols in the symbol_id_list.
 
         Returns:
             dict: A dictionary containing analysis results for all symbols.
         """
-        results = {}
-        for symbol, symbol_id in self.symbol_id_list.items():
-            try:
-                results[symbol] = self.analyze_symbol(symbol, symbol_id)
-                print(f"Analysis completed for {symbol}.")
-            except Exception as e:
-                print(f"Failed to analyze {symbol}: {e}")
-        return results
+        final_res = {}
+        for year in range(start_year,datetime.now().year + 1):
+            results = {}
+            for symbol, symbol_id in self.symbol_id_list.items():
+                try:
+                    results[symbol] = self.analyze_symbol(symbol, symbol_id,year)
+                    print(f"Analysis completed for {symbol}.")
+                except Exception as e:
+                    print(f"Failed to analyze {symbol}: {e}")
+            final_res[year] = results
+        return final_res
     
-    def save_market_data(self,data, year):
+    def save_market_data(self,final_data):
         """
         Save or update market data into Django models.
 
@@ -200,23 +205,25 @@ class MarketDataHandler:
             data (dict): The market data dictionary.
             year (int): The year of the seasonality data.
         """
-        for symbol_name, symbol_data in data.items():
-            # Save or update the Symbol
-            symbol, created = Symbol.objects.update_or_create(
-                name=symbol_name,
-                defaults={'trend': symbol_data['trend']}
-            )
-
-            # Save or update Seasonality for the year
-            seasonality_data = symbol_data['seasonality']
-            for month, value in seasonality_data.items():
-                Seasonality.objects.update_or_create(
-                    symbol=symbol,
-                    year=year,
-                    month=month,
-                    defaults={'value': value}
+        for year in final_data.keys():
+            data = final_data[year]
+            for symbol_name, symbol_data in data.items():
+                # Save or update the Symbol
+                symbol, created = Symbol.objects.update_or_create(
+                    name=symbol_name,
+                    defaults={'trend': symbol_data['trend']}
                 )
+
+                # Save or update Seasonality for the year
+                seasonality_data = symbol_data['seasonality']
+                for month, value in seasonality_data.items():
+                    Seasonality.objects.update_or_create(
+                        symbol=symbol,
+                        year=year,
+                        month=month,
+                        defaults={'value': value}
+                    )
     
     def execute(self):
-        res = self.analyze_all_symbols()
-        self.save_market_data(res,datetime.now().year)
+        res = self.analyze_all_symbols(2020)
+        self.save_market_data(res)
