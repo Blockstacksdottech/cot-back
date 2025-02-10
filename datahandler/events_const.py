@@ -24,27 +24,27 @@ final_values = {
     },
     "mpmi" : {
         "all" : r"^Judo Bank Australia Manufacturing PMI",
-        "AUD" : r"^Judo Bank Australia Manufacturing PMI",
+        "AUD" : r"^Judo Bank Manufacturing PMI",
         "NZD" : r"^Business NZ PMI  \(",
-        "CHF" : r"^procure.ch PMI  \(",
-        "CAD" : r"^S&P Global Canada Manufacturing PMI  \(",
-        "JPY" : r"^au Jibun Bank Japan Manufacturing PMI  \(",
-        "GBP" : r"^S&P Global/CIPS UK Manufacturing PMI  \(",
+        "CHF" : r"^procure.ch Manufacturing PMI  \(",
+        "CAD" : r"^S&P Global Manufacturing PMI  \(",
+        "JPY" : r"^au Jibun Bank Manufacturing PMI  \(",
+        "GBP" : r"^S&P Global Manufacturing PMI  \(",
         "EUR" : r"^HCOB Eurozone Manufacturing PMI  \(",
-        "MXN" : r"^S&P Global Mexico Manufacturing PMI  \(",
-        "USD" : r"^S&P Global US Manufacturing PMI  \(",
+        "MXN" : r"^S&P Global Manufacturing PMI  \(",
+        "USD" : r"^S&P Global Manufacturing PMI  \(",
         
     },
     "spmi" : {
         "all" : r"^Judo Bank Australia Manufacturing PMI",
-        "AUD" : r"^Judo Bank Australia Services PMI",
+        "AUD" : r"^Judo Bank Services PMI",
         "NZD" : r"^Business NZ PMI  \(",
-        "CHF" : r"^procure.ch PMI  \(",
+        "CHF" : r"^procure.ch Manufacturing PMI  \(",
         "CAD" : r"^Ivey PMI  \(",
-        "JPY" : r"^au Jibun Bank Japan Services PMI  \(",
-        "GBP" : r"^S&P Global/CIPS UK Services PMI  \(",
+        "JPY" : r"^au Jibun Bank Services PMI  \(",
+        "GBP" : r"^S&P Global Services PMI  \(",
         "EUR" : r"^HCOB Eurozone Services PMI  \(",
-        "MXN" : r"^S&P Global Mexico Services PMI  \(",
+        "MXN" : r"^S&P Global Manufacturing PMI  \(",
         "USD" : r"^S&P Global Services PMI  \(",
     },
     "retail" : {
@@ -77,7 +77,6 @@ final_values = {
 
     }
 }
-
 target = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'CHF', 'NZD', 'MXN', 'AUD']
 
 zone_mapping = {
