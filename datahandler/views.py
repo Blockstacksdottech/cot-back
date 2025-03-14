@@ -723,6 +723,7 @@ class ArticleViewSet(ModelViewSet):
     
     serializer_class = ArticleSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly, IsSuperuserOrMember]
+    lookup_field = 'slug' 
 
     def get_queryset(self):
         # Get the limit from the query parameters

@@ -4,6 +4,7 @@ import uuid
 from django.db.models.signals import pre_save
 from django.dispatch import receiver
 import math
+from django.utils.text import slugify
 
 # Create your models here.
 
@@ -57,6 +58,7 @@ class UserImage(models.Model):
 class Article(models.Model):
     user = models.ForeignKey(CustomUser, on_delete=models.CASCADE)
     title = models.CharField(max_length=255, default="", blank=True)
+    slug = models.SlugField(max_length=280, blank=True)
     content = models.TextField(default="", blank=True)
     image = models.ImageField(
         upload_to='thumbnails/', null=True, blank=True)
@@ -64,6 +66,24 @@ class Article(models.Model):
 
     def __str__(self):
         return self.title
+    
+@receiver(pre_save, sender=Article)
+def generate_slug(sender, instance, *args, **kwargs):
+    """
+    Automatically generates a slug from the title before saving the instance.
+    Ensures uniqueness by appending a number if the slug already exists.
+    """
+    if not instance.slug:  # Only generate a slug if it's not already set
+        base_slug = slugify(instance.title)  # Convert title to a slug
+        slug = base_slug
+        counter = 1
+
+        # Ensure the slug is unique
+        while Article.objects.filter(slug=slug).exists():
+            slug = f"{base_slug}-{counter}"
+            counter += 1
+
+        instance.slug = slug
 
 class DateInterval(models.Model):
     date = models.DateTimeField()
