@@ -73,5 +73,7 @@ urlpatterns = [
     path('reset-password', ResetPasswordView.as_view(), name='reset-password'),
     path('contact', ContactFormView.as_view(), name='contact-form'),
     path("fundamental",CurrencyEventDataView.as_view(),name='fondamental-view'),
-    path("user-seasonality",UserSeasonalityView.as_view(),name="user-seasonality")
+    path("user-seasonality",UserSeasonalityView.as_view(),name="user-seasonality"),
+    path("adm-date-seasonality",AdmDateSeasonalityView.as_view(),name="adm-date-seasonality"),
+    path("adm-date-scanner",AdmDateScannerView.as_view(),name="adm-date-scanner")
 ]

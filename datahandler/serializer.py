@@ -12,6 +12,7 @@ from drf_stripe.serializers import CheckoutRequestSerializer, StripeError
 from drf_stripe.stripe_api.checkout import stripe_api_create_checkout_session
 from .helper import get_or_create_stripe_user, get_valid_and_tier
 import math
+from django.utils.dateparse import parse_date
 
 
 class CustomCheckoutSerializer(CheckoutRequestSerializer):
@@ -463,20 +464,44 @@ class EventSerializer(serializers.ModelSerializer):
         super(EventSerializer, self).__init__(*args, **kwargs)
 
     def get_data(self, instance):
-        if self.context['request'] and (self.context['request'].user.is_superuser or self.context['request'].user.is_member) :
-            # Check for 'latest' GET parameter
-            latest_param = self.context['request'].query_params.get('latest', None)
+        # Check if the request context is available
+        if not self.context.get('request'):
+            return None
+
+        # Extract query parameters
+        latest_param = self.context['request'].query_params.get('latest', None)
+        date_param = self.context['request'].query_params.get('date', None)
+
+        # Check user permissions
+        if self.context['request'].user.is_superuser or self.context['request'].user.is_member:
             if latest_param and latest_param.lower() == 'true':
                 # Return only the latest event data if 'latest=true' is provided
                 latest_event_data = instance.event_data.order_by('-date', '-time').first()
                 if latest_event_data:
                     return EventDataSerializer(latest_event_data).data
                 return None
+            elif date_param:
+                # Handle filtering by date
+                try:
+                    target_date = parse_date(date_param)
+                    if not target_date:
+                        raise ValueError("Invalid date format.")
+                except ValueError:
+                    return {"error": "Invalid date format. Use YYYY-MM-DD."}
+
+                # Find the closest EventData prior to or on the target date
+                closest_event_data = instance.event_data.filter(
+                    date__lte=target_date
+                ).order_by('-date', '-time').first()
+
+                if closest_event_data:
+                    return EventDataSerializer(closest_event_data).data
+                return {"error": "No data found for the given date or earlier."}
             else:
-                # Return all event data if 'latest' is not specified or false
+                # Return all event data if no specific filters are applied
                 return EventDataSerializer(instance.event_data.all(), many=True).data
         else:
-            # Return only the latest event data if the user is not a superuser
+            # Return only the latest event data if the user is not a superuser or member
             latest_event_data = instance.event_data.order_by('-date', '-time').first()
             if latest_event_data:
                 return EventDataSerializer(latest_event_data).data

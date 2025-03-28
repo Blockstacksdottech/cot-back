@@ -14,6 +14,8 @@ from urllib.parse import urlparse
 # serializers imports
 from .serializer import *
 import datetime
+from django.utils.dateparse import parse_date
+from django.db.models import OuterRef, Subquery
 
 # models imports
 from .models import *
@@ -1158,3 +1160,86 @@ class CurrencyEventDataView(APIView):
         currencies = Currency.objects.all()
         serializer = CurrencyEventDataSerializer(currencies, many=True, context={'request': request})
         return Response(serializer.data, status=HTTP_200_OK)
+    
+
+
+
+class AdmDateSeasonalityView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        # Extract the date from query parameters
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response({"error": "Date parameter is required."}, status=HTTP_400_BAD_REQUEST)
+
+        try:
+            # Parse the date string into a datetime object
+            target_date = parse_date(date_str)
+            if not target_date:
+                raise ValueError("Invalid date format.")
+        except ValueError:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=HTTP_400_BAD_REQUEST)
+
+        # Convert the target date to year and month for filtering
+        target_year = target_date.year
+        target_month = target_date.month
+
+        
+        # Subquery to find the closest Seasonality record for each symbol
+        closest_data_subquery = Seasonality.objects.filter(
+            symbol=OuterRef('pk'),
+            year__lte=target_year,
+            month__lte=target_month
+        ).order_by('-year', '-month').values('id')[:1]
+
+        # Annotate each symbol with its closest Seasonality record
+        symbols_with_closest_data = Symbol.objects.annotate(
+            closest_seasonality_id=Subquery(closest_data_subquery)
+        )
+
+        # Prefetch related Seasonality data for efficiency
+        seasonality_data = Seasonality.objects.filter(
+            id__in=[symbol.closest_seasonality_id for symbol in symbols_with_closest_data if symbol.closest_seasonality_id]
+        ).select_related('symbol')
+
+        # Create a mapping of symbol ID to Seasonality data
+        seasonality_mapping = {data.symbol.id: data for data in seasonality_data}
+
+        # Prepare the response
+        response_data = []
+        for symbol in symbols_with_closest_data:
+            closest_data = seasonality_mapping.get(symbol.id)
+            
+            response_data.append(UserSeasonalitySerializer(closest_data).data if closest_data else None)
+            
+            
+
+        return Response(response_data)
+    
+class AdmDateScannerView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+
+    def get(self, request):
+        
+        # Extract the date from the request body
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response({"error": "Date parameter is required."}, status=HTTP_400_BAD_REQUEST)
+
+        try:
+            # Parse the date string into a datetime object
+            target_date = parse_date(date_str)
+            if not target_date:
+                raise ValueError("Invalid date format.")
+        except ValueError:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=HTTP_400_BAD_REQUEST)
+
+        # Subquery to find the closest DateInterval for each symbol
+        date_interval = DateInterval.objects.filter(
+            date__lte=target_date
+        ).order_by('-date').first()
+
+        data = ScannerDateSerializer(date_interval).data
+        return Response(data, status=HTTP_200_OK)
