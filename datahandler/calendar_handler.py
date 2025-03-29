@@ -377,93 +377,82 @@ def calculate_score_with_weights(df):
 
     return df
 
+
+
 def save_analyzed_data(analyzed_result):
     for currency_name, df in analyzed_result.items():
         # Get or create the currency
         currency, _ = Currency.objects.get_or_create(name=currency_name)
+        
         for _, row in df.iterrows():
             # Get or create the event
-            event, _ = Event.objects.get_or_create(currency=currency, event_code=row['ev'], importance=row['importance'])
+            event, _ = Event.objects.get_or_create(
+                currency=currency,
+                event_code=row['ev'],
+                importance=row['importance']
+            )
             
-            event_data = None
-            # Check if the EventData already exists
-            try:
-                event_data = EventData.objects.get(
-                    event=event,
-                    date=row['datetime'],
-                    time=row['time']
-                )
-                
-                # Compare actual, previous, forecast, and their percentage values
-                should_update = (
-                    event_data.actual != (row['num_actual'] if row['num_actual'] is not None else 0.0) or
-                    event_data.forecast != (row['num_forecast'] if row['num_forecast'] is not None else 0.0) or
-                    event_data.previous != (row['num_previous'] if row['num_previous'] is not None else 0.0) or
-                    event_data.actual_perc != (row['actual_percentage'] if row['actual_percentage'] is not None else 0.0) or
-                    event_data.forecast_perc != (row['forecast_percentage'] if row['forecast_percentage'] is not None else 0.0) or
-                    event_data.previous_perc != (row['previous_percentage'] if row['previous_percentage'] is not None else 0.0)
+            # Use filter to handle potential duplicates
+            event_data_entries = EventData.objects.filter(
+                event=event,
+                date=row['datetime'],
+                time=row['time']
+            )
+            
+            if event_data_entries.count() > 1:
+                # Log a warning and delete duplicates, keeping the first entry
+                print(f"Warning: Found {event_data_entries.count()} duplicates for {event.event_code} on {row['date']} at {row['time']}. Deleting extras.")
+                for duplicate in event_data_entries[1:]:
+                    duplicate.delete()
+            
+            # Use the first entry if it exists, or None if no entries exist
+            event_data = event_data_entries.first()
+            
+            # Prepare data for comparison or creation
+            data_to_save = {
+                'actual': row['num_actual'] if row['num_actual'] is not None else 0.0,
+                'forecast': row['num_forecast'] if row['num_forecast'] is not None else 0.0,
+                'previous': row['num_previous'] if row['num_previous'] is not None else 0.0,
+                'actual_perc': row['actual_percentage'] if row['actual_percentage'] is not None else 0.0,
+                'forecast_perc': row['forecast_percentage'] if row['forecast_percentage'] is not None else 0.0,
+                'previous_perc': row['previous_percentage'] if row['previous_percentage'] is not None else 0.0,
+                'surprise': row['Surprise'] if row['Surprise'] is not None else 0.0,
+                'trend': row['Trend'] if row['Trend'] is not None else 0.0,
+                'magnitude': row['Magnitude'] if row['Magnitude'] is not None else 0.0,
+                'score': row['Score'] if row['Score'] is not None else 0.0,
+                'rescaled_score': row['Rescaled Score'] if row['Rescaled Score'] is not None else 0.0,
+                'rescaled_trend': row['Rescaled Trend'] if row['Rescaled Trend'] is not None else 0.0,
+                'rescaled_avg_score': row['rescaled_avg_score'] if row['rescaled_avg_score'] is not None else 0.0,
+                'year': row['year'],
+                'month': row['month'],
+                'avg_score': row['avg_score'] if row['avg_score'] is not None else 0.0,
+            }
+            
+            if event_data:
+                # Compare fields to determine if an update is needed
+                should_update = any(
+                    getattr(event_data, key) != value
+                    for key, value in data_to_save.items()
                 )
                 
                 if should_update:
                     # Update the existing EventData entry
-                    event_data.actual = row['num_actual'] if row['num_actual'] is not None else 0.0
-                    event_data.forecast = row['num_forecast'] if row['num_forecast'] is not None else 0.0
-                    event_data.previous = row['num_previous'] if row['num_previous'] is not None else 0.0
-                    event_data.actual_perc = row['actual_percentage'] if row['actual_percentage'] is not None else 0.0
-                    event_data.forecast_perc = row['forecast_percentage'] if row['forecast_percentage'] is not None else 0.0
-                    event_data.previous_perc = row['previous_percentage'] if row['previous_percentage'] is not None else 0.0
-                    event_data.surprise = row['Surprise'] if row['Surprise'] is not None else 0.0
-                    event_data.trend = row['Trend'] if row['Trend'] is not None else 0.0
-                    event_data.magnitude = row['Magnitude'] if row['Magnitude'] is not None else 0.0
-                    event_data.score = row['Score'] if row['Score'] is not None else 0.0
-                    event_data.rescaled_score = row['Rescaled Score'] if row['Rescaled Score'] is not None else 0.0
-                    event_data.rescaled_trend = row['Rescaled Trend'] if row['Rescaled Trend'] is not None else 0.0
-                    event_data.rescaled_avg_score = row['rescaled_avg_score'] if row['rescaled_avg_score'] is not None else 0.0
-                    event_data.year = row['year']
-                    event_data.month = row['month']
-                    event_data.avg_score = row['avg_score'] if row['avg_score'] is not None else 0.0
+                    for key, value in data_to_save.items():
+                        setattr(event_data, key, value)
                     event_data.save()
                     print(f"Updated EventData for {event.event_code} on {row['date']} at {row['time']}.")
                 else:
                     print(f"No changes detected for {event.event_code} on {row['date']} at {row['time']}. Skipping update.")
-            
-            except EventData.DoesNotExist:
-                if not event_data:
-                    # Create EventData entry if it doesn't exist
-                    EventData.objects.create(
-                        event=event,
-                        date=row['datetime'],
-                        str_date=row['date'],
-                        time=row['time'],
-                        actual=row['num_actual'] if row['num_actual'] is not None else 0.0,
-                        forecast=row['num_forecast'] if row['num_forecast'] is not None else 0.0,
-                        previous=row['num_previous'] if row['num_previous'] is not None else 0.0,
-                        actual_perc=row['actual_percentage'] if row['actual_percentage'] is not None else 0.0,
-                        forecast_perc=row['forecast_percentage'] if row['forecast_percentage'] is not None else 0.0,
-                        previous_perc=row['previous_percentage'] if row['previous_percentage'] is not None else 0.0,
-                        surprise=row['Surprise'] if row['Surprise'] is not None else 0.0,
-                        trend=row['Trend'] if row['Trend'] is not None else 0.0,
-                        magnitude=row['Magnitude'] if row['Magnitude'] is not None else 0.0,
-                        score=row['Score'] if row['Score'] is not None else 0.0,
-                        rescaled_score=row['Rescaled Score'] if row['Rescaled Score'] is not None else 0.0,
-                        rescaled_trend=row['Rescaled Trend'] if row['Rescaled Trend'] is not None else 0.0,
-                        rescaled_avg_score=row['rescaled_avg_score'] if row['rescaled_avg_score'] is not None else 0.0,
-                        year=row['year'],
-                        month=row['month'],
-                        avg_score=row['avg_score'] if row['avg_score'] is not None else 0.0,
-                    )
-                    print(f"Created new EventData for {event.event_code} on {row['date']} at {row['time']}.")
-                else:
-                   events_ = EventData.objects.filter(
+            else:
+                # Create a new EventData entry
+                EventData.objects.create(
                     event=event,
                     date=row['datetime'],
-                    time=row['time']
-                )   
-                   if events_.count() > 1:
-                      events_[0].delete()
-                      print("deleting duplicate")
-
-
+                    str_date=row['date'],
+                    time=row['time'],
+                    **data_to_save
+                )
+                print(f"Created new EventData for {event.event_code} on {row['date']} at {row['time']}.")
 def main():
     print("#### Fetching Data ####")
     combined = fetch_data()
