@@ -453,6 +453,15 @@ def save_analyzed_data(analyzed_result):
                         avg_score=row['avg_score'] if row['avg_score'] is not None else 0.0,
                     )
                     print(f"Created new EventData for {event.event_code} on {row['date']} at {row['time']}.")
+                else:
+                   events_ = EventData.objects.filter(
+                    event=event,
+                    date=row['datetime'],
+                    time=row['time']
+                )   
+                   if events_.count() > 1:
+                      events_[0].delete()
+                      print("deleting duplicate")
 
 
 def main():
