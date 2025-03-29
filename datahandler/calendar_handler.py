@@ -385,6 +385,7 @@ def save_analyzed_data(analyzed_result):
             # Get or create the event
             event, _ = Event.objects.get_or_create(currency=currency, event_code=row['ev'], importance=row['importance'])
             
+            event_data = None
             # Check if the EventData already exists
             try:
                 event_data = EventData.objects.get(
@@ -427,30 +428,31 @@ def save_analyzed_data(analyzed_result):
                     print(f"No changes detected for {event.event_code} on {row['date']} at {row['time']}. Skipping update.")
             
             except EventData.DoesNotExist:
-                # Create EventData entry if it doesn't exist
-                EventData.objects.create(
-                    event=event,
-                    date=row['datetime'],
-                    str_date=row['date'],
-                    time=row['time'],
-                    actual=row['num_actual'] if row['num_actual'] is not None else 0.0,
-                    forecast=row['num_forecast'] if row['num_forecast'] is not None else 0.0,
-                    previous=row['num_previous'] if row['num_previous'] is not None else 0.0,
-                    actual_perc=row['actual_percentage'] if row['actual_percentage'] is not None else 0.0,
-                    forecast_perc=row['forecast_percentage'] if row['forecast_percentage'] is not None else 0.0,
-                    previous_perc=row['previous_percentage'] if row['previous_percentage'] is not None else 0.0,
-                    surprise=row['Surprise'] if row['Surprise'] is not None else 0.0,
-                    trend=row['Trend'] if row['Trend'] is not None else 0.0,
-                    magnitude=row['Magnitude'] if row['Magnitude'] is not None else 0.0,
-                    score=row['Score'] if row['Score'] is not None else 0.0,
-                    rescaled_score=row['Rescaled Score'] if row['Rescaled Score'] is not None else 0.0,
-                    rescaled_trend=row['Rescaled Trend'] if row['Rescaled Trend'] is not None else 0.0,
-                    rescaled_avg_score=row['rescaled_avg_score'] if row['rescaled_avg_score'] is not None else 0.0,
-                    year=row['year'],
-                    month=row['month'],
-                    avg_score=row['avg_score'] if row['avg_score'] is not None else 0.0,
-                )
-                print(f"Created new EventData for {event.event_code} on {row['date']} at {row['time']}.")
+                if not event_data:
+                    # Create EventData entry if it doesn't exist
+                    EventData.objects.create(
+                        event=event,
+                        date=row['datetime'],
+                        str_date=row['date'],
+                        time=row['time'],
+                        actual=row['num_actual'] if row['num_actual'] is not None else 0.0,
+                        forecast=row['num_forecast'] if row['num_forecast'] is not None else 0.0,
+                        previous=row['num_previous'] if row['num_previous'] is not None else 0.0,
+                        actual_perc=row['actual_percentage'] if row['actual_percentage'] is not None else 0.0,
+                        forecast_perc=row['forecast_percentage'] if row['forecast_percentage'] is not None else 0.0,
+                        previous_perc=row['previous_percentage'] if row['previous_percentage'] is not None else 0.0,
+                        surprise=row['Surprise'] if row['Surprise'] is not None else 0.0,
+                        trend=row['Trend'] if row['Trend'] is not None else 0.0,
+                        magnitude=row['Magnitude'] if row['Magnitude'] is not None else 0.0,
+                        score=row['Score'] if row['Score'] is not None else 0.0,
+                        rescaled_score=row['Rescaled Score'] if row['Rescaled Score'] is not None else 0.0,
+                        rescaled_trend=row['Rescaled Trend'] if row['Rescaled Trend'] is not None else 0.0,
+                        rescaled_avg_score=row['rescaled_avg_score'] if row['rescaled_avg_score'] is not None else 0.0,
+                        year=row['year'],
+                        month=row['month'],
+                        avg_score=row['avg_score'] if row['avg_score'] is not None else 0.0,
+                    )
+                    print(f"Created new EventData for {event.event_code} on {row['date']} at {row['time']}.")
 
 
 def main():
