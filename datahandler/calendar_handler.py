@@ -390,7 +390,7 @@ def save_analyzed_data(analyzed_result):
             event, _ = Event.objects.get_or_create(
                 currency=currency,
                 event_code=row['ev'],
-                importance=row['importance']
+                importance=row['Impact']
             )
             
             # Use filter to handle potential duplicates
