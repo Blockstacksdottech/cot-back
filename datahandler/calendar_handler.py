@@ -386,6 +386,9 @@ def save_analyzed_data(analyzed_result):
         currency, _ = Currency.objects.get_or_create(name=currency_name)
         
         for _, row in df.iterrows():
+            # Ensure that str_date and time are populated
+            str_date = row['datetime'].strftime('%d/%m/%Y')  # Assuming datetime is a pandas Timestamp
+            time = row['datetime'].strftime('%H:%M')  # Extracting just the time part
             # Get or create the event
             event, _ = Event.objects.get_or_create(
                 currency=currency,
@@ -397,7 +400,7 @@ def save_analyzed_data(analyzed_result):
             event_data_entries = EventData.objects.filter(
                 event=event,
                 date=row['datetime'],
-                time=row['time']
+                time=time
             )
             
             if event_data_entries.count() > 1:
@@ -428,7 +431,14 @@ def save_analyzed_data(analyzed_result):
                 'month': row['month'],
                 'avg_score': row['avg_score'] if row['avg_score'] is not None else 0.0,
             }
+
             
+            
+            # Add these to data_to_save
+            data_to_save['str_date'] = str_date
+            data_to_save['time'] = time
+            data_to_save['date'] = row['datetime']
+
             if event_data:
                 # Compare fields to determine if an update is needed
                 should_update = any(
@@ -449,11 +459,12 @@ def save_analyzed_data(analyzed_result):
                 EventData.objects.create(
                     event=event,
                     date=row['datetime'],
-                    str_date=row['date'],
-                    time=row['time'],
+                    str_date=str_date,
+                    time=time,
                     **data_to_save
                 )
                 print(f"Created new EventData for {event.event_code} on {row['date']} at {row['time']}.")
+
 def main():
     print("#### Fetching Data ####")
     combined = fetch_data()
