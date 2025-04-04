@@ -146,9 +146,9 @@ class MyFXBookScraper:
             impact = impact_td.text.strip() if impact_td else None
 
             values_tds = row.find_all('td')[4:7]
-            act = MyFXBookScraper.convert_value(values_tds[0].text.strip()) if values_tds[0] else None
+            prev = MyFXBookScraper.convert_value(values_tds[0].text.strip()) if values_tds[0] else None
             cons = MyFXBookScraper.convert_value(values_tds[1].text.strip()) if values_tds[1] else None
-            prev = MyFXBookScraper.convert_value(values_tds[2].text.strip()) if values_tds[2] else None
+            act = MyFXBookScraper.convert_value(values_tds[2].text.strip()) if values_tds[2] else None
 
             data.append({
                 'Date': date,
