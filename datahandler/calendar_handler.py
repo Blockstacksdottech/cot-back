@@ -435,9 +435,9 @@ def save_analyzed_data(analyzed_result):
             
             
             # Add these to data_to_save
-            data_to_save['str_date'] = str_date
-            data_to_save['time'] = time
-            data_to_save['date'] = row['datetime']
+            #data_to_save['str_date'] = str_date
+            #data_to_save['time'] = time
+            #data_to_save['date'] = row['datetime']
 
             if event_data:
                 # Compare fields to determine if an update is needed
