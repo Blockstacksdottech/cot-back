@@ -463,7 +463,7 @@ def save_analyzed_data(analyzed_result):
                     time=time,
                     **data_to_save
                 )
-                print(f"Created new EventData for {event.event_code} on {row['date']} at {row['time']}.")
+                print(f"Created new EventData for {event.event_code} on {str_date} at {time}.")
 
 def main():
     print("#### Fetching Data ####")
