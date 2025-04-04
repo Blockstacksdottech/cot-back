@@ -451,9 +451,9 @@ def save_analyzed_data(analyzed_result):
                     for key, value in data_to_save.items():
                         setattr(event_data, key, value)
                     event_data.save()
-                    print(f"Updated EventData for {event.event_code} on {row['date']} at {row['time']}.")
+                    print(f"Updated EventData for {event.event_code} on {str_date} at {time}.")
                 else:
-                    print(f"No changes detected for {event.event_code} on {row['date']} at {row['time']}. Skipping update.")
+                    print(f"No changes detected for {event.event_code} on {str_date} at {time}. Skipping update.")
             else:
                 # Create a new EventData entry
                 EventData.objects.create(
