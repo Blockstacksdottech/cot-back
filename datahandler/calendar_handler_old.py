@@ -6,7 +6,6 @@ import numpy as np
 import pandas as pd
 from .events_const import final_values,target,zone_mapping,weights
 import time
-from .scraper.MyFxBookScraper import MyFXBookScraper
 
 START_DATE = "01/01/2020"
 
@@ -77,24 +76,20 @@ def combine_dataframes(dataframes):
   return combined_df
 
 def fetch_data():
+    arr = get_month_range(START_DATE,get_current_date())
     all_data = []
+    for i in range(len(arr) - 1):
+        print(arr[i])
+        while True:
+            try:
+                data = investpy.economic_calendar(from_date=arr[i],to_date=arr[i+1])
+                break
+            except Exception as e:
+                print("Failed Fetching data retrying in 5 sec")
+                time.sleep(5)
 
-    for currency in target:
-        print(f"\nFetching data for {currency}...")
-
-        scraper = MyFXBookScraper(start_date="01-01-2020", currencies=[currency])
-        df = scraper.fetch_data()
-
-        if df.empty:
-            print(f"No data found for {currency}")
-        else:
-            print(f"Fetched {len(df)} records for {currency}")
-            all_data.append(df)
-
-    if not all_data:
-        raise ValueError("No data fetched for any currency.")
-
-    combined = pd.concat(all_data, ignore_index=True)
+        all_data.append(data)
+    combined = combine_dataframes(all_data)
     return combined
 
 # Function to extract numeric values using regex and replace None with 0
@@ -135,87 +130,91 @@ def filter_with_event(df,query,t):
     return filtered_df
 
 def filter_data(target_currencies, combined_df):
-    """Filters the DataFrame based on predefined event patterns and currencies.
-
-    Args:
-        target_currencies (list): List of currency codes to filter.
-        combined_df (pd.DataFrame): The full scraped dataset.
-
-    Returns:
-        dict: Dictionary containing filtered data per currency.
-    """
+    # Create a dictionary to store results for each currency
     all_results = {}
 
+    # Loop over each target currency and apply filtering
     for currency in target_currencies:
+        # Get the regex pattern for the current currency
         temp_data = []
+        for k in final_values.keys():
+            options = final_values[k]
+            if currency in options:
+                q = options[currency]
+            else:
+                q = options.get('all', '')
 
-        for event_category, options in final_values.items():
-            q = options.get(currency, options.get('all', ''))  # Get regex pattern
+            # Filter the DataFrame for the specific currency
+            test_data = combined_df[combined_df['currency'] == currency]
 
-            # Filter DataFrame for the specific currency
-            test_data = combined_df[combined_df['Currency'] == currency]
+            # Further filter for 'importance' levels (if needed)
+            test_data = test_data[test_data['importance'].isin(['low', 'medium', 'high'])]
+            test_data = test_data[test_data['zone'].isin([zone_mapping[currency]])]
 
-            # Filter for impact levels
-            test_data = test_data[test_data['Impact'].isin(['low', 'med', 'high'])]
-
-            # Apply regex filter to 'Event' column
-            filtered_df = test_data[test_data['Event'].str.contains(q, case=False, regex=True, na=False)]
-
-            # Convert 'Date' to datetime format
-            filtered_df['datetime'] = pd.to_datetime(filtered_df['Date'], format='%Y-%m-%d %H:%M')
-
-            # Assign event category
-            filtered_df['ev'] = event_category
-
-            # Sort by datetime
+            # Apply the regex filter on the 'event' column
+            filtered_df = test_data[test_data['event'].str.contains(q, case=False, regex=True)]
+            filtered_df['time'] = filtered_df['time'].replace('Tentative', '00:00')
+            filtered_df['datetime'] = pd.to_datetime(filtered_df['date'] + ' ' + filtered_df['time'], format='%d/%m/%Y %H:%M')
+            filtered_df['ev'] = k
+            filtered_df = filtered_df.sort_values(by='date')
+            # Order the filtered results by date
             filtered_df = filtered_df.sort_values(by='datetime')
 
-            # Apply numeric extraction to actual, consensus, and previous values
-            filtered_df['num_actual'] = filtered_df['Actual'].apply(extract_numeric)
-            filtered_df['num_forecast'] = filtered_df['Consensus'].apply(extract_numeric)
-            filtered_df['num_previous'] = filtered_df['Previous'].apply(extract_numeric)
-
-            # Shift previous values to calculate changes
+            # Apply the extract_numeric function to clean up the values
+            filtered_df['num_actual'] = filtered_df['actual'].apply(extract_numeric)
+            filtered_df['num_forecast'] = filtered_df['forecast'].apply(extract_numeric)
+            filtered_df['num_previous'] = filtered_df['previous'].apply(extract_numeric)
+            # Shift the 'previous' column to get the value from the prior row (previous_previous)
             filtered_df['previous_previous'] = filtered_df['num_previous'].shift(1)
-
-            # Calculate percentage changes
+            #print(filtered_df['event'].unique().tolist())
+            #print(filtered_df.tail())
+            # Now calculate percentage changes for actual and forecast based on previous
             filtered_df = calculate_percentage_changes(filtered_df)
-
             temp_data.append(filtered_df)
 
-        if temp_data:
-            combined_result = combine_dataframes(temp_data).sort_values(by='datetime')
-            if not combined_result.empty:
-                all_results[currency] = combined_result
+        combined_result = combine_dataframes(temp_data)
+        # Order the filtered results by date
+        combined_result = combined_result.sort_values(by='datetime')
+
+        # Apply the extract_numeric function to clean up the values
+        #combined_result['num_actual'] = combined_result['actual'].apply(extract_numeric)
+        #combined_result['num_forecast'] = combined_result['forecast'].apply(extract_numeric)
+        #combined_result['num_previous'] = combined_result['previous'].apply(extract_numeric)
+         # Shift the 'previous' column to get the value from the prior row (previous_previous)
+        #df['previous_previous'] = df['num_previous'].shift(1)
+        # Now calculate percentage changes for actual and forecast based on previous
+        #combined_result = calculate_percentage_changes(combined_result)
+
+        # Store the results for the current currency if any are found
+        if not combined_result.empty:
+            all_results[currency] = combined_result
 
     return all_results
 
-
 def calculate_percentage_changes(df):
-    """Calculate percentage change for Actual, Consensus, and Previous values."""
-
+    """Calculate percentage change for actual, forecast, and previous based on previous and previous_previous."""
+    
     def calc_percentage_change(current, previous):
-        """Calculate percentage change, avoiding division by zero."""
-        if previous and previous != 0:  
-            return (current - previous) / abs(previous)
-        return 0  
+        """Helper function to calculate percentage change."""
+        if previous != 0:  # Avoid division by zero
+            return ((current - previous) / abs(previous))
+        return 0  # If previous is 0, return 0 to avoid errors
 
-    # Ensure numeric columns have no NaN values
-    df[['num_actual', 'num_forecast', 'num_previous', 'previous_previous']] = df[
-        ['num_actual', 'num_forecast', 'num_previous', 'previous_previous']
-    ].fillna(0)
 
-    # Apply calculations while handling percentage values correctly
+    # Calculate percentage change for 'actual' and 'forecast' based on 'previous'
     df['actual_percentage'] = df.apply(
-        lambda row: row['num_actual'] if "%" in str(row['Actual']) else calc_percentage_change(row['num_actual'], row['num_previous']), axis=1
+        lambda row: calc_percentage_change(row['num_actual'], row['num_previous']) if "%" not in str(row['actual']) else row['num_actual'], axis=1
     )
-
+    
     df['forecast_percentage'] = df.apply(
-        lambda row: row['num_forecast'] if "%" in str(row['Consensus']) else calc_percentage_change(row['num_forecast'], row['num_previous']), axis=1
+        lambda row: calc_percentage_change(row['num_forecast'], row['num_previous']) if "%" not in str(row['forecast'])  else row['num_forecast'], axis=1
     )
-
+    
+   
+    
+    # Calculate the percentage change for 'previous' based on 'previous_previous'
     df['previous_percentage'] = df.apply(
-        lambda row: row['num_previous'] if "%" in str(row['Previous']) else calc_percentage_change(row['num_previous'], row['previous_previous']), axis=1
+        lambda row: calc_percentage_change(row['num_previous'], row['previous_previous']) if pd.notnull(row['previous_previous']) and "%" not in str(row['previous'])  else row['num_previous'], axis=1
     )
 
     return df
@@ -356,9 +355,9 @@ def calculate_score_with_weights(df):
     df['month'] = df['datetime'].dt.month
 
     # Calculate avg_score grouped by indicator and month
-    new_score = df.groupby(['Event', 'month'])['Score'].mean().reset_index()
+    new_score = df.groupby(['event', 'month'])['Score'].mean().reset_index()
     new_score.rename(columns={'Score': 'avg_score'}, inplace=True)
-    df = pd.merge(df, new_score, on=['Event', 'month'], how='left')
+    df = pd.merge(df, new_score, on=['event', 'month'], how='left')
 
     # Normalize the avg_score to -20 to 20
     min_avg_score = df['avg_score'].min()
@@ -457,7 +456,7 @@ def save_analyzed_data(analyzed_result):
 def main():
     print("#### Fetching Data ####")
     combined = fetch_data()
-    #combined = combined.drop_duplicates(subset='id')
+    combined = combined.drop_duplicates(subset='id')
     print("### Filtering ###")
     res = filter_data(target,combined)
     analyzed_result = {}

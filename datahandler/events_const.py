@@ -1,4 +1,4 @@
-final_values = {
+final_values_old = {
     "gdp" : {"all" : r"^GDP \(QoQ\)  \("},
     "cpi" : {"all" :  r"^CPI \(MoM\)  \(",
              "NZD" : r"^CPI \(QoQ\)  \(",
@@ -77,6 +77,107 @@ final_values = {
 
     }
 }
+
+final_values = {
+    "gdp": {
+        "USD": r"^GDP Growth Rate QoQ \(Q\d\)",
+        "EUR": r"^GDP Growth Rate QoQ \(",
+        "GBP": r"^GDP MoM \(",
+        "JPY": r"^GDP Growth Rate QoQ \(Q\d\)",
+        "CAD": r"^GDP MoM \(",
+        "CHF": r"^GDP Growth Rate QoQ \(Q\d\)",
+        "NZD": r"^GDP Growth Rate QoQ \(Q\d\)",
+        "MXN": r"^GDP Growth Rate QoQ \(Q\d\)",
+        "AUD": r"^GDP Growth Rate QoQ \(Q\d\)",
+    },
+    "cpi": {
+        "USD": r"^CPI \(",
+        "EUR": r"^CPI \(",
+        "GBP": r"^Inflation Rate MoM \(",
+        "JPY": r"^Tokyo Core CPI YoY \(",
+        "CAD": r"^Inflation Rate MoM \(",
+        "CHF": r"^Inflation Rate MoM \(",
+        "NZD": r"^Inflation Rate QoQ \(Q\d\)",
+        "MXN": r"^Inflation Rate MoM \(",
+        "AUD": r"^Inflation Rate QoQ \(",
+    },
+    "unemployment": {
+        "USD": r"^Unemployment Rate \(",
+        "EUR": r"^Unemployment Rate Harmonised \(",
+        "GBP": r"^Unemployment Rate \(",
+        "JPY": r"^Unemployment Rate \(",
+        "CAD": r"^Unemployment Rate \(",
+        "CHF": r"^Unemployment Rate \(",
+        "NZD": r"^Unemployment Rate \(Q\d\)",
+        "MXN": r"^Unemployment Rate \(",
+        "AUD": r"^Unemployment Rate \(",
+    },
+    "employment": {
+        "USD": r"^Nonfarm Payrolls",
+        "EUR": r"^Employment Change QoQ \(",
+        "GBP": r"^Employment Change \(",
+        "JPY": r"^Jobs\/applications ratio \(",
+        "CAD": r"^Employment Change \(",
+        "CHF": r"^Non Farm Payrolls \(Q\d\)",
+        "NZD": r"^Employment Change QoQ \(Q\d\)",
+        "MXN": r"^Economic Activity MoM \(",
+        "AUD": r"^Employment Change \(",
+    },
+    "mpmi": {
+        "USD": r"^ISM Manufacturing PMI \(",
+        "EUR": r"^HCOB Manufacturing PMI \(",
+        "GBP": r"^Markit/CIPS Manufacturing PMI \(",
+        "JPY": r"^Jibun Bank Manufacturing PMI \(",
+        "CAD": r"^Markit Manufacturing PMI \(",
+        "CHF": r"^procure\.ch Manufacturing PMI \(",
+        "MXN": r"^Markit Manufacturing PMI \(",
+        "NZD": r"^Business NZ PMI \(",
+        "AUD": r"^Markit Manufacturing PMI \(",
+    },
+    "spmi": {
+        "USD": r"^ISM Services PMI \(",
+        "EUR": r"^HCOB Services PMI \(",
+        "GBP": r"^Markit/CIPS UK Services PMI \(",
+        "JPY": r"^Jibun Bank Services PMI \(",
+        "CAD": r"^S&P Global Services PMI \(",
+        "NZD": r"^Services NZ PSI \(",
+        "AUD": r"^Markit Services PMI \(",
+    },
+    "retail": {
+        "USD": r"^Retail Sales MoM \(",
+        "EUR": r"^Retail Sales MoM \(",
+        "GBP": r"^Retail Sales MoM \(",
+        "JPY": r"^Retail Sales MoM \(",
+        "CAD": r"^Retail Sales MoM \(",
+        "CHF": r"^Retail Sales MoM \(",
+        "NZD": r"^Retail Sales QoQ \(Q\d\)",
+        "MXN": r"^Industrial Production MoM \(",
+        "AUD": r"^Retail Sales MoM \(",
+    },
+    "ppi": {
+        "USD": r"^PPI MoM \(",
+        "EUR": r"^PPI MoM \(",
+        "GBP": r"^PPI Output MoM \(",
+        "JPY": r"^PPI MoM \(",
+        "CAD": r"^PPI MoM \(",
+        "CHF": r"^Producer & Import Prices MoM \(",
+        "NZD": r"^PPI Output QoQ \(Q\d\)",
+        "MXN": r"^Producer Price Index MoM \(",
+        "AUD": r"^PPI QoQ \(",
+    },
+    "interest": {
+        "USD": r"^Fed Interest Rate Decision",
+        "EUR": r"^ECB Interest Rate Decision",
+        "GBP": r"^BoE Interest Rate Decision",
+        "JPY": r"^BoJ Interest Rate Decision",
+        "CAD": r"^BoC Interest Rate Decision",
+        "CHF": r"^SNB Interest Rate Decision",
+        "NZD": r"^RBNZ Interest Rate Decision",
+        "MXN": r"^Interest Rate Decision",
+        "AUD": r"^RBA Interest Rate Decision",
+    }
+}
+
 target = ['USD', 'EUR', 'GBP', 'JPY', 'CAD', 'CHF', 'NZD', 'MXN', 'AUD']
 
 zone_mapping = {

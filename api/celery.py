@@ -27,7 +27,7 @@ app.conf.beat_schedule = {
     },
     'test-calendar': {
         'task': 'datahandler.tasks.fetch_calendar',
-        'schedule': crontab(minute='*/10'),
+        'schedule': crontab(minute='*/45'),
         'args': (),
     },
     'seasonality-task': {
