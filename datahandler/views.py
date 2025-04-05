@@ -1163,6 +1163,44 @@ class CurrencyEventDataView(APIView):
     
 
 
+class AdmDateTrendView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, *args, **kwargs):
+        date_str = request.query_params.get('date')
+        if not date_str:
+            return Response({"error": "Date parameter is required."}, status=HTTP_400_BAD_REQUEST)
+
+        try:
+            target_date = parse_date(date_str)
+            if not target_date:
+                raise ValueError("Invalid date format.")
+        except ValueError:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=HTTP_400_BAD_REQUEST)
+
+        # Subquery to find the closest Trends record for each symbol
+        closest_trend_subquery = Trends.objects.filter(
+            symbol=OuterRef('pk'),
+            date__lte=target_date
+        ).order_by('-date').values('id')[:1]
+
+        symbols_with_closest_trend = Symbol.objects.annotate(
+            closest_trend_id=Subquery(closest_trend_subquery)
+        )
+
+        trends_data = Trends.objects.filter(
+            id__in=[symbol.closest_trend_id for symbol in symbols_with_closest_trend if symbol.closest_trend_id]
+        ).select_related('symbol')
+
+        trends_mapping = {trend.symbol.id: trend for trend in trends_data}
+
+        response_data = []
+        for symbol in symbols_with_closest_trend:
+            trend = trends_mapping.get(symbol.id)
+            response_data.append(TrendSerializer(trend).data if trend else None)
+
+        return Response(response_data)
+
 
 class AdmDateSeasonalityView(APIView):
     permission_classes = [permissions.AllowAny]

@@ -325,6 +325,16 @@ class Symbol(models.Model):
 
     def __str__(self):
         return self.name
+    
+class Trends(models.Model):
+    symbol = models.ForeignKey(Symbol, on_delete=models.CASCADE, related_name='trends')
+    date = models.DateTimeField()  # Full datetime
+    change = models.FloatField()
+    trend = models.FloatField()
+
+    class Meta:
+        unique_together = ('symbol', 'date')  # Prevent duplicates
+        ordering = ['date']
 
 
 class Seasonality(models.Model):

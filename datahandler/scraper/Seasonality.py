@@ -1,7 +1,7 @@
 import requests
 import pandas as pd
 from datetime import datetime, timedelta
-from datahandler.models import Symbol,Seasonality
+from datahandler.models import Symbol,Seasonality,Trends
 
 symbol_id_list = {'AUDCAD': '8',
  'AUDJPY': '9',
@@ -93,6 +93,22 @@ class MarketDataHandler:
         df["human_readable_time"] = pd.to_datetime(df["t"], unit="s")
         return df.sort_values(by="t", ascending=True).reset_index(drop=True)
 
+    def add_weekly_trend_columns(self, df):
+        """
+        Adds 'weekly_trend' (1-week % change) and 'rolling_3w_trend' (sum of last 3 weeks' % change)
+        columns to the weekly data DataFrame.
+
+        Args:
+            df (pd.DataFrame): DataFrame containing weekly data with 'c' column for close prices.
+
+        Returns:
+            pd.DataFrame: DataFrame with added columns.
+        """
+        df = df.copy()
+        df["weekly_trend"] = self.calculate_percentage_change(df["c"], 1)
+        df["rolling_3w_trend"] = df["weekly_trend"].rolling(window=3).sum().shift(1)
+        return df
+
     def calculate_seasonality(self, df,year):
         """
         Calculate seasonality based on the last 5 full years of data for each month.
@@ -148,6 +164,19 @@ class MarketDataHandler:
 
         # Sum the percentage change for the three weeks prior to the last week
         return df["weekly_change"].iloc[-4:-1].sum()
+    
+    def analyze_trend(self,symbol_id,from_timestamp,to_timestamp,year,symbol):
+        # Fetch weekly data
+        weekly_data = self.fetch_data(symbol_id, "1W", from_timestamp, to_timestamp)
+        weekly_data = self.add_weekly_trend_columns(weekly_data)
+        trend = self.calculate_trend(weekly_data,year)
+
+        # Get or create the symbol instance
+        symbol_instance, _ = Symbol.objects.get_or_create(name=symbol)
+
+        # Save the weekly trend data
+        self.save_weekly_trends(symbol_instance, weekly_data)
+        return trend
 
     def analyze_symbol(self, symbol, symbol_id,year):
         """
@@ -167,10 +196,8 @@ class MarketDataHandler:
         # Fetch monthly data
         monthly_data = self.fetch_data(symbol_id, "1M", from_timestamp, to_timestamp)
         seasonality = self.calculate_seasonality(monthly_data,year)
-
-        # Fetch weekly data
-        weekly_data = self.fetch_data(symbol_id, "1W", from_timestamp, to_timestamp)
-        trend = self.calculate_trend(weekly_data,year)
+        trend = self.analyze_trend(symbol_id,from_timestamp,to_timestamp,year,symbol)
+        
 
         return {
             "symbol": symbol,
@@ -197,6 +224,45 @@ class MarketDataHandler:
             final_res[year] = results
         return final_res
     
+    def update_trends(self):
+        for symbol, symbol_id in self.symbol_id_list.items():
+            try:
+                # Adjust the from_timestamp to fetch 6 years of data
+                to_timestamp = int(datetime.now().timestamp())
+                from_timestamp = int((datetime.now() - timedelta(days=15 * 365)).timestamp())
+                self.analyze_trend(symbol_id,from_timestamp,to_timestamp,2025,symbol)
+                print(f"Analysis completed for {symbol}.")
+            except Exception as e:
+                print(f"Failed to analyze {symbol}: {e}")
+    
+
+
+    def save_weekly_trends(self, symbol_instance, weekly_df):
+        """
+        Save weekly trend data for a given symbol into the Trends model.
+
+        Args:
+            symbol_instance (Symbol): The Symbol model instance.
+            weekly_df (pd.DataFrame): DataFrame with 'weekly_trend' and 'rolling_3w_trend' columns.
+        """
+        for _, row in weekly_df.iterrows():
+            timestamp = row["t"]
+            dt = datetime.fromtimestamp(timestamp)
+            weekly_trend = row.get("weekly_trend")
+            rolling_trend = row.get("rolling_3w_trend")
+
+            if pd.isna(weekly_trend):
+                continue  # Skip if we don't have valid data
+
+            Trends.objects.update_or_create(
+                symbol=symbol_instance,
+                date=dt,
+                defaults={
+                    "change": weekly_trend,
+                    "trend": rolling_trend if not pd.isna(rolling_trend) else 0.0,
+                }
+            )
+
     def save_market_data(self,final_data):
         """
         Save or update market data into Django models.

@@ -1,5 +1,5 @@
 from .models import (
-    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement, Article,Currency,Event,EventData,Symbol,Seasonality
+    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement, Article,Currency,Event,EventData,Symbol,Seasonality,Trends
 )
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -548,3 +548,10 @@ class UserSeasonalitySerializer(serializers.ModelSerializer):
     def get_trend(self, obj):
         return obj.symbol.trend
 
+
+class TrendSerializer(serializers.ModelSerializer):
+    symbol = serializers.StringRelatedField()  # or `symbol.name` if using custom representation
+
+    class Meta:
+        model = Trends
+        fields = ['symbol', 'date', 'change', 'trend']
