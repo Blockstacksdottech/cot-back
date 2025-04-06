@@ -24,3 +24,9 @@ def fetch_seasonality():
     print("Updating seasonality")
     h = MarketDataHandler()
     h.execute()
+
+@shared_task
+def fetch_trends():
+    print("Updating Trends")
+    h = MarketDataHandler()
+    h.update_trends()

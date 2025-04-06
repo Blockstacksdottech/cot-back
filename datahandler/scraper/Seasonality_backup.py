@@ -230,46 +230,79 @@ class MarketDataHandler:
         return final_res
     
 
-    def fetch_yahoo_data(self, symbol, interval='1d', start="2010-01-01", end=None):
-        symbol = symbol + "=X"
-        print(f"Fetching data for {symbol}")
-        ticker = yf.Ticker(symbol)  # Add =X for forex pairs
+    def fetch_yahoo_data(self,symbol, interval='1d', start="2020-01-01", end=None):
+        """
+        Fetch historical data from Yahoo Finance starting from 2020.
+
+        Args:
+            symbol (str): The Yahoo Finance ticker.
+            interval (str): Interval for data points.
+            start (str): Start date in 'YYYY-MM-DD'.
+            end (str): Optional end date, defaults to now.
+
+        Returns:
+            pd.DataFrame: Historical data.
+        """
+        ticker = yf.Ticker(symbol)
         df = ticker.history(interval=interval, start=start, end=end)
         df = df.reset_index()
         df.rename(columns={'Date': 'datetime', 'Close': 'c'}, inplace=True)
         df['t'] = df['datetime'].astype('int64') // 10**9
-        print("done")
         return df
+    
+    def calculate_new_trend( df):
+        """
+        Calculate trend using the formula:
+        (current_close - close_15_days_ago) / close_15_days_ago
 
-    def calculate_new_trend(self, df):
+        Adds a 'trend' column to the dataframe.
+
+        Args:
+            df (pd.DataFrame): DataFrame with daily close prices.
+
+        Returns:
+            pd.DataFrame: Updated DataFrame with trend column.
+        """
         df = df.copy()
-        df['trend'] = (df['c'] - df['c'].shift(15)) / df['c'].shift(15) * 100  # percent change
+        df['trend'] = (df['c'] - df['c'].shift(15)) / df['c'].shift(15) * 100  # in percentage
         return df
-
+    
     def update_trends(self):
         for symbol, symbol_id in self.symbol_id_list.items():
             try:
-                df = self.fetch_yahoo_data(symbol)
-                df = self.calculate_new_trend(df)
-                self.save_trends(symbol, df)
-                print(f"Trends updated for {symbol}")
+                # Adjust the from_timestamp to fetch 6 years of data
+                to_timestamp = int(datetime.now().timestamp())
+                from_timestamp = int((datetime.now() - timedelta(days=15 * 365)).timestamp())
+                self.analyze_trend(symbol_id,from_timestamp,to_timestamp,2025,symbol)
+                print(f"Analysis completed for {symbol}.")
             except Exception as e:
-                print(f"Error processing {symbol}: {e}")
+                print(f"Failed to analyze {symbol}: {e}")
+    
 
-    def save_trends(self, symbol, df):
-        symbol_instance = Symbol.objects.get(name=symbol)
-        for _, row in df.iterrows():
-            if pd.isna(row['trend']):
-                continue
-            dt = row['datetime']
-            t = int(row['t'])
-            trend_value = row['trend']
+
+    def save_weekly_trends(self, symbol_instance, weekly_df):
+        """
+        Save weekly trend data for a given symbol into the Trends model.
+
+        Args:
+            symbol_instance (Symbol): The Symbol model instance.
+            weekly_df (pd.DataFrame): DataFrame with 'weekly_trend' and 'rolling_3w_trend' columns.
+        """
+        for _, row in weekly_df.iterrows():
+            timestamp = row["t"]
+            dt = datetime.fromtimestamp(timestamp)
+            weekly_trend = row.get("weekly_trend")
+            rolling_trend = row.get("rolling_3w_trend")
+
+            if pd.isna(weekly_trend):
+                continue  # Skip if we don't have valid data
+
             Trends.objects.update_or_create(
                 symbol=symbol_instance,
                 date=dt,
                 defaults={
-                    'change': trend_value,
-                    'trend': trend_value
+                    "change": weekly_trend,
+                    "trend": rolling_trend if not pd.isna(rolling_trend) else 0.0,
                 }
             )
 

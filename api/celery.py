@@ -35,6 +35,11 @@ app.conf.beat_schedule = {
         'schedule': crontab(hour=0, minute=0),
         'args': (),
     },
+    'trends-task': {
+        'task': 'datahandler.tasks.fetch_trends',
+        'schedule': crontab(minute='*/15'),
+        'args': (),
+    },
 }
 
 
