@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 from .events_const import final_values,target,zone_mapping,weights
 import time
-from .scraper.MyFxBookScraper import MyFXBookScraper
+from .scraper.MyFxBookScraper import MyFXBookScraperParallel
 
 START_DATE = "01/01/2020"
 
@@ -82,7 +82,7 @@ def fetch_data():
     for currency in target:
         print(f"\nFetching data for {currency}...")
 
-        scraper = MyFXBookScraper(start_date="01-01-2020", currencies=[currency])
+        scraper = MyFXBookScraperParallel(start_date="01-01-2020", currencies=[currency],max_workers=10)
         df = scraper.fetch_data()
 
         if df.empty:

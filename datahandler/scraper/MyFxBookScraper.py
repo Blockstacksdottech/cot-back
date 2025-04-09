@@ -4,7 +4,129 @@ import re
 from bs4 import BeautifulSoup
 from datetime import datetime,timedelta
 import  time
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from random import uniform
 
+
+
+
+
+class MyFXBookScraperParallel:
+    BASE_URL = "https://widget.myfxbook.com/calendar/search.html"
+    HEADERS = {
+        "content-type": "application/json"
+    }
+
+    def __init__(self, start_date, end_date=None, currencies=None, max_workers=10):
+        self.start_date = datetime.strptime(start_date, "%d-%m-%Y")
+        self.end_date = datetime.strptime(end_date, "%d-%m-%Y") if end_date else datetime.today()
+        self.currencies = currencies or ["USD"]
+        self.max_workers = max_workers
+
+    def _get_intervals(self):
+        intervals = []
+        current = self.start_date
+        while current <= self.end_date:
+            end = min(current + timedelta(days=2), self.end_date)
+            intervals.append((current, end))
+            current = end + timedelta(days=1)
+        return intervals
+
+    def _fetch_chunk(self, start_date, end_date):
+        session = requests.Session()
+        payload = {
+            "startDate": start_date.strftime("%Y-%m-%dT00:00:00.000Z"),
+            "endDate": end_date.strftime("%Y-%m-%dT23:59:59.999Z"),
+            "language": "en",
+            "impacts": ["3", "2", "1", "0"],
+            "currencies": self.currencies
+        }
+        for attempt in range(3):
+            try:
+                res = session.post(self.BASE_URL, json=payload, headers=self.HEADERS, timeout=10)
+                if res.status_code == 200:
+                    df = self.parse_html(res.content.decode())
+                    print(f"✅ {start_date.date()} to {end_date.date()} - {len(df)} events")
+                    return df
+                else:
+                    print(f"❌ Error {res.status_code} for {start_date} to {end_date}")
+            except Exception as e:
+                print(f"⚠️ Exception for {start_date} to {end_date}: {e}")
+                wait = uniform(1, 5)
+                print(f"Retry {attempt+1} for {start_date} - sleeping {wait:.2f}s")
+                time.sleep(wait)
+        return pd.DataFrame()
+
+    def fetch_data(self):
+        intervals = self._get_intervals()
+        all_data = []
+
+        with ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+            futures = {
+                executor.submit(self._fetch_chunk, start, end): (start, end)
+                for start, end in intervals
+            }
+            for future in as_completed(futures):
+                df = future.result()
+                if not df.empty:
+                    all_data.append(df)
+
+        return pd.concat(all_data, ignore_index=True) if all_data else pd.DataFrame()
+
+    @staticmethod
+    def parse_html(html_content):
+        soup = BeautifulSoup(html_content, 'html.parser')
+        rows = soup.find_all('tr', attrs={'data-calendar-row': True})
+
+        data = []
+        for row in rows:
+            try:
+                date_td = row.find('td', attrs={'data-event-date': True})
+                date = pd.to_datetime(int(date_td['data-event-date']), unit='ms').strftime('%Y-%m-%d %H:%M') if date_td else None
+
+                currency_div = row.find_all('td')[2].find_all('div')[1]
+                event_div = row.find_all('td')[2].find_all('div')[2]
+                currency = currency_div.text.strip() if currency_div else None
+                event = event_div.text.strip() if event_div else None
+
+                impact = row.find_all('td')[3].text.strip()
+                values = row.find_all('td')[4:7]
+                prev = MyFXBookScraperParallel.convert_value(values[0].text.strip())
+                cons = MyFXBookScraperParallel.convert_value(values[1].text.strip())
+                act = MyFXBookScraperParallel.convert_value(values[2].text.strip())
+
+                data.append({
+                    'Date': date,
+                    'Currency': currency,
+                    'Event': event,
+                    'Impact': impact,
+                    'Actual': act,
+                    'Consensus': cons,
+                    'Previous': prev
+                })
+            except Exception:
+                continue
+        return pd.DataFrame(data)
+
+    @staticmethod
+    def convert_value(value):
+        if not value or value == '-':
+            return None
+        value = value.replace(',', '')
+        match = re.match(r'([\d\.]+)([KMB%]*)', value)
+        if not match:
+            return value
+        num, suffix = match.groups()
+        num = float(num)
+        if suffix == 'K':
+            num *= 1_000
+        elif suffix == 'M':
+            num *= 1_000_000
+        elif suffix == 'B':
+            num *= 1_000_000_000
+        elif '%' in suffix:
+            return f"{num}%"
+        return int(num) if num.is_integer() else num
 
   
 class MyFXBookScraper:
