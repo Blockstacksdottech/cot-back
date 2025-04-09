@@ -90,6 +90,8 @@ def fetch_data():
         else:
             print(f"Fetched {len(df)} records for {currency}")
             all_data.append(df)
+        print("waiting to reset timer")
+        time.sleep(15)
 
     if not all_data:
         raise ValueError("No data fetched for any currency.")

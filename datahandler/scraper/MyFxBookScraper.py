@@ -50,6 +50,9 @@ class MyFXBookScraperParallel:
                     return df
                 else:
                     print(f"❌ Error {res.status_code} for {start_date} to {end_date}")
+                    wait = uniform(1, 30)
+                    print(f"Retry {attempt+1} for {start_date} - sleeping {wait:.2f}s")
+                    time.sleep(wait)
             except Exception as e:
                 print(f"⚠️ Exception for {start_date} to {end_date}: {e}")
                 wait = uniform(1, 5)
