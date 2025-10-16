@@ -5,7 +5,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.status import *
 from rest_framework import permissions
 from django.db.models.functions import TruncMonth, TruncWeek
-from django.db.models import Sum
+from django.db.models import Sum,Q
 from django.utils import timezone
 from collections import defaultdict
 from django.core.mail import send_mail
@@ -16,6 +16,8 @@ from .serializer import *
 import datetime
 from django.utils.dateparse import parse_date
 from django.db.models import OuterRef, Subquery
+from celery import current_app
+from celery.result import AsyncResult
 
 # models imports
 from .models import *
@@ -238,14 +240,66 @@ class UserSeasonalityView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        current_year = datetime.datetime.now().year
-        current_month = datetime.datetime.now().month
+        today = datetime.date.today()
+        target_year = today.year
+        target_month = today.month
+
+        # Subquery to find the closest Seasonality record for each symbol
+        closest_data_subquery = Seasonality.objects.filter(
+            symbol=OuterRef('pk')
+        ).filter(
+            (Q(year__lt=target_year)) |
+            (Q(year=target_year, month__lte=target_month))
+        ).order_by('-year', '-month').values('id')[:1]
+
+        symbols_with_closest_data = Symbol.objects.annotate(
+            closest_seasonality_id=Subquery(closest_data_subquery)
+        )
+
         seasonality_data = Seasonality.objects.filter(
-            year=current_year,
-            month=current_month
+            id__in=[s.closest_seasonality_id for s in symbols_with_closest_data if s.closest_seasonality_id]
         ).select_related('symbol')
-        serializer = UserSeasonalitySerializer(seasonality_data, many=True)
-        return Response(serializer.data)
+
+        seasonality_mapping = {data.symbol.id: data for data in seasonality_data}
+
+        response_data = []
+        for symbol in symbols_with_closest_data:
+            closest_data = seasonality_mapping.get(symbol.id)
+            response_data.append(UserSeasonalitySerializer(closest_data).data if closest_data else None)
+
+        return Response(response_data)
+
+    
+class UserTrendView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, *args, **kwargs):
+        target_date = datetime.date.today()
+
+        # Subquery to find the closest Trends record for each symbol
+        closest_trend_subquery = Trends.objects.filter(
+            symbol=OuterRef('pk'),
+            date__lte=target_date
+        ).order_by('-date').values('id')[:1]
+
+        symbols_with_closest_trend = Symbol.objects.annotate(
+            closest_trend_id=Subquery(closest_trend_subquery)
+        )
+
+        # Fetch all those trends in one query
+        trends_data = Trends.objects.filter(
+            id__in=[s.closest_trend_id for s in symbols_with_closest_trend if s.closest_trend_id]
+        ).select_related('symbol')
+
+        trends_mapping = {trend.symbol.id: trend for trend in trends_data}
+
+        response_data = []
+        for symbol in symbols_with_closest_trend:
+            trend = trends_mapping.get(symbol.id)
+            response_data.append(TrendSerializer(trend).data if trend else None)
+
+        return Response(response_data)
+
 
 class SentimentScoreView(APIView):
     def get(self, request):
@@ -1281,3 +1335,38 @@ class AdmDateScannerView(APIView):
 
         data = ScannerDateSerializer(date_interval).data
         return Response(data, status=HTTP_200_OK)
+    
+
+class AdminTaskTriggerView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    TASK_MAP = {
+        "fetch_data": "datahandler.tasks.manual_fetch_data",
+        "fetch_calendar": "datahandler.tasks.manual_fetch_calendar",
+        "fetch_seasonality": "datahandler.tasks.manual_fetch_seasonality",
+        "fetch_trends": "datahandler.tasks.manual_fetch_trends",
+    }
+
+    def post(self, request, *args, **kwargs):
+        task_name = request.data.get("task")
+        if task_name not in self.TASK_MAP:
+            return Response({"error": "Invalid task name"}, status=status.HTTP_400_BAD_REQUEST)
+
+        celery_task_name = self.TASK_MAP[task_name]
+        task = current_app.send_task(celery_task_name, queue="admin")
+
+        return Response({
+            "message": f"Triggered {task_name}",
+            "task_id": task.id
+        })
+    
+class AdminTaskStatusView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, task_id):
+        result = AsyncResult(task_id)
+        return Response({
+            "id": task_id,
+            "status": result.status,
+            "result": str(result.result) if result.result else None
+        })

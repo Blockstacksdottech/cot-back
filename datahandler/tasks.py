@@ -30,3 +30,29 @@ def fetch_trends():
     print("Updating Trends")
     h = MarketDataHandler()
     h.update_trends()
+
+
+@shared_task(name="datahandler.tasks.manual_fetch_data")
+def manual_fetch_data():
+    print("Manual: fetching the data")
+    execute()
+
+
+@shared_task(name="datahandler.tasks.manual_fetch_calendar")
+def manual_fetch_calendar():
+    print("Manual: fetching calendar data")
+    main()
+
+
+@shared_task(name="datahandler.tasks.manual_fetch_seasonality")
+def manual_fetch_seasonality():
+    print("Manual: Updating seasonality")
+    h = MarketDataHandler()
+    h.execute()
+
+
+@shared_task(name="datahandler.tasks.manual_fetch_trends")
+def manual_fetch_trends():
+    print("Manual: Updating trends")
+    h = MarketDataHandler()
+    h.update_trends()
