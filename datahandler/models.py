@@ -362,14 +362,14 @@ def validate_seasonality(sender, instance, **kwargs):
 
 
 class SentimentRecord(models.Model):
-    symbol = models.CharField(max_length=10, unique=True)
-    short_percentage = models.CharField(max_length=10, null=True, blank=True)
-    long_percentage = models.CharField(max_length=10, null=True, blank=True)
-    short_volume = models.CharField(max_length=20, null=True, blank=True)
-    long_volume = models.CharField(max_length=20, null=True, blank=True)
-    short_positions = models.CharField(max_length=20, null=True, blank=True)
-    long_positions = models.CharField(max_length=20, null=True, blank=True)
-    traders_percentage = models.CharField(max_length=10, null=True, blank=True)
+    symbol = models.CharField(max_length=100, unique=True)
+    short_percentage = models.CharField(max_length=100, null=True, blank=True)
+    long_percentage = models.CharField(max_length=100, null=True, blank=True)
+    short_volume = models.CharField(max_length=200, null=True, blank=True)
+    long_volume = models.CharField(max_length=200, null=True, blank=True)
+    short_positions = models.CharField(max_length=200, null=True, blank=True)
+    long_positions = models.CharField(max_length=200, null=True, blank=True)
+    traders_percentage = models.CharField(max_length=100, null=True, blank=True)
     updated_at = models.DateTimeField(default=timezone.now)
 
     def __str__(self):
