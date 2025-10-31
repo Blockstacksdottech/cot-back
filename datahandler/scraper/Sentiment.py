@@ -1,5 +1,7 @@
 import requests
 from bs4 import BeautifulSoup
+from datahandler.models import SentimentRecord
+from django.utils import timezone
 
 
 class Sentiment:
@@ -127,6 +129,32 @@ class Sentiment:
     def execute(self):
         outlook_data = self.get_outlook_data(self.url, self.symbol_list)
 
+        for item in outlook_data:
+            traders_pct = item.get('traders_percentage')
+
+            for symbol, data in item.items():
+                if symbol == 'traders_percentage':
+                    continue
+
+                # Normalize keys to lowercase for safety
+                short_data = data.get('Short') or data.get('short') or {}
+                long_data = data.get('Long') or data.get('long') or {}
+
+                SentimentRecord.objects.update_or_create(
+                    symbol=symbol,
+                    defaults={
+                        'short_percentage': short_data.get('percentage'),
+                        'long_percentage': long_data.get('percentage'),
+                        'short_volume': short_data.get('volume'),
+                        'long_volume': long_data.get('volume'),
+                        'short_positions': short_data.get('positions'),
+                        'long_positions': long_data.get('positions'),
+                        'traders_percentage': traders_pct,
+                        'updated_at': timezone.now(),
+                    }
+                )
+
+        print(f"✅ Updated {len(outlook_data)} sentiment entries.")
         return outlook_data
 
     def scrape_adr(self):

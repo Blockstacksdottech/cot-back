@@ -1,5 +1,5 @@
 from .models import (
-    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement, Article,Currency,Event,EventData,Symbol,Seasonality,Trends
+    CustomUser, DateInterval, Data, GeneralData, ProcessedData, UserDetails, UserImage, VideoLinks, PdfFiles, RecoveryRequest, Announcement, Article,Currency,Event,EventData,Symbol,Seasonality,Trends,SentimentRecord
 )
 from rest_framework.serializers import ModelSerializer, SerializerMethodField
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
@@ -554,4 +554,21 @@ class TrendSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Trends
-        fields = ['symbol', 'date', 'change', 'trend']
+        fields = ['symbol', 'date', 'change', 'trend','user_trend']
+
+
+
+class SentimentRecordSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SentimentRecord
+        fields = [
+            'symbol',
+            'short_percentage',
+            'long_percentage',
+            'short_volume',
+            'long_volume',
+            'short_positions',
+            'long_positions',
+            'traders_percentage',
+            'updated_at',
+        ]

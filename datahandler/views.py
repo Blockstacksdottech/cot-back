@@ -618,15 +618,40 @@ class SentimentData(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
+        """
+        Fetches the latest sentiment records from DB (already updated elsewhere),
+        and returns them in the same nested structure as the scraped data.
+        """
         user = request.user
         valid, tier, s_user, item = get_valid_and_tier(user)
         validation_res = validate_user(s_user, tier, valid, user, 2)
+
         if not validation_res:
             return Response({"failed": True}, status=HTTP_400_BAD_REQUEST)
-        else:
-            s_handler = Sentiment()
-            data = s_handler.execute()
-            return Response(data, status=HTTP_200_OK)
+
+        # Fetch all records ordered by symbol
+        queryset = SentimentRecord.objects.all().order_by('symbol')
+
+        # Rebuild nested structure
+        formatted_data = []
+        for record in queryset:
+            formatted_data.append({
+                record.symbol: {
+                    "Short": {
+                        "percentage": record.short_percentage,
+                        "volume": record.short_volume,
+                        "positions": record.short_positions,
+                    },
+                    "Long": {
+                        "percentage": record.long_percentage,
+                        "volume": record.long_volume,
+                        "positions": record.long_positions,
+                    },
+                },
+                "traders_percentage": record.traders_percentage,
+            })
+
+        return Response(formatted_data, status=HTTP_200_OK)
 
 
 class ChangeData(APIView):

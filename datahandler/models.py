@@ -6,6 +6,8 @@ from django.dispatch import receiver
 import math
 from django.utils.text import slugify
 
+from django.utils import timezone
+
 # Create your models here.
 
 
@@ -331,6 +333,7 @@ class Trends(models.Model):
     date = models.DateTimeField()  # Full datetime
     change = models.FloatField()
     trend = models.FloatField()
+    user_trend = models.FloatField(null=True, blank=True)
 
     class Meta:
         unique_together = ('symbol', 'date')  # Prevent duplicates
@@ -355,3 +358,19 @@ class Seasonality(models.Model):
 def validate_seasonality(sender, instance, **kwargs):
     if not math.isfinite(instance.value):
         instance.value = 0  # Replace with a default value
+
+
+
+class SentimentRecord(models.Model):
+    symbol = models.CharField(max_length=10, unique=True)
+    short_percentage = models.CharField(max_length=10, null=True, blank=True)
+    long_percentage = models.CharField(max_length=10, null=True, blank=True)
+    short_volume = models.CharField(max_length=20, null=True, blank=True)
+    long_volume = models.CharField(max_length=20, null=True, blank=True)
+    short_positions = models.CharField(max_length=20, null=True, blank=True)
+    long_positions = models.CharField(max_length=20, null=True, blank=True)
+    traders_percentage = models.CharField(max_length=10, null=True, blank=True)
+    updated_at = models.DateTimeField(default=timezone.now)
+
+    def __str__(self):
+        return f"{self.symbol} ({self.updated_at:%H:%M})"

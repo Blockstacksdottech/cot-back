@@ -244,6 +244,16 @@ class MarketDataHandler:
     def calculate_new_trend(self, df):
         df = df.copy()
         df['trend'] = (df['c'] - df['c'].shift(15)) / df['c'].shift(15) * 100  # percent change
+        df['user_trend'] = (df['c'] - df['c'].shift(21)) / df['c'].shift(21) * 100
+        return df
+    
+    def calculate_user_trend(self, df):
+        """
+        Calculate user_trend as ((current close - close 3 weeks ago) / close 3 weeks ago) * 100
+        Assuming 1 day = 1 row, so 3 weeks = 21 trading days.
+        """
+        df = df.copy()
+        df['user_trend'] = (df['c'] - df['c'].shift(21)) / df['c'].shift(21) * 100
         return df
 
     def update_trends(self):
@@ -264,12 +274,14 @@ class MarketDataHandler:
             dt = row['datetime']
             t = int(row['t'])
             trend_value = row['trend']
+            user_trend_value = row.get('user_trend', None)
             Trends.objects.update_or_create(
                 symbol=symbol_instance,
                 date=dt,
                 defaults={
                     'change': trend_value,
-                    'trend': trend_value
+                    'trend': trend_value,
+                    'user_trend': user_trend_value
                 }
             )
 

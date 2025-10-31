@@ -2,6 +2,7 @@ from celery import shared_task
 from .handler import execute
 from .calendar_handler import main
 from .scraper.Seasonality import MarketDataHandler
+from .scraper.Sentiment import Sentiment
 
 
 @shared_task
@@ -56,3 +57,10 @@ def manual_fetch_trends():
     print("Manual: Updating trends")
     h = MarketDataHandler()
     h.update_trends()
+
+
+@shared_task
+def fetch_sentiment():
+    print("Fetching MyFXBook sentiment data...")
+    s = Sentiment()
+    s.execute()

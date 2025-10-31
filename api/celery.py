@@ -31,6 +31,7 @@ app.conf.task_routes = {
     'datahandler.tasks.fetch_calendar': {'queue': 'default'},
     'datahandler.tasks.fetch_seasonality': {'queue': 'default'},
     'datahandler.tasks.fetch_trends': {'queue': 'default'},
+    'datahandler.tasks.fetch-sentiment-every-10min': {'queue': 'default'},
     'datahandler.tasks.manual_*': {'queue': 'admin'},  # pattern for admin-triggered tasks
 }
 
@@ -59,6 +60,10 @@ app.conf.beat_schedule = {
         'task': 'datahandler.tasks.fetch_trends',
         'schedule': crontab(minute='*/15'),
         'args': (),
+    },
+    'fetch-sentiment-every-10min': {
+        'task': 'datahandler.tasks.fetch_sentiment',
+        'schedule': crontab(minute='*/10'),
     },
 }
 
