@@ -46,6 +46,15 @@ class MarketDataHandler:
     
     BASE_URL = "https://www.myfxbook.com/tvc/history"
 
+    HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json, text/plain, */*",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Referer": "https://www.myfxbook.com/",
+        "Origin": "https://www.myfxbook.com",
+        "Authority": "www.myfxbook.com"
+    }
+
     def __init__(self):
         """
         Initialize the MarketDataHandler with a dictionary of symbols and their IDs.
@@ -85,7 +94,7 @@ class MarketDataHandler:
             pd.DataFrame: A DataFrame containing the historical data.
         """
         url = f"{self.BASE_URL}?symbol={symbol_id}&resolution={resolution}&from={from_timestamp}&to={to_timestamp}"
-        response = requests.get(url)
+        response = requests.get(url, headers=self.HEADERS)
         response.raise_for_status()
         data = response.json()
 

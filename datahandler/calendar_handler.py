@@ -76,13 +76,19 @@ def combine_dataframes(dataframes):
 
   return combined_df
 
-def fetch_data():
+def fetch_data(full_history=False):
     all_data = []
+
+    # Safe default: 365 days ago (to cover annual/quarterly events trend calculation)
+    # If full_history is True, use the hardcoded 2020 start date.
+    start_date_str = "01-01-2020" if full_history else (datetime.date.today() - datetime.timedelta(days=365)).strftime("%d-%m-%Y")
+
+    print(f"Fetching data starting from: {start_date_str}")
 
     for currency in target:
         print(f"\nFetching data for {currency}...")
 
-        scraper = MyFXBookScraperParallel(start_date="01-01-2020", currencies=[currency],max_workers=10)
+        scraper = MyFXBookScraperParallel(start_date=start_date_str, currencies=[currency],max_workers=3)
         df = scraper.fetch_data()
 
         if df.empty:
@@ -94,7 +100,14 @@ def fetch_data():
         time.sleep(15)
 
     if not all_data:
-        raise ValueError("No data fetched for any currency.")
+        # It's possible no data is returned if the window is small and no events happened, 
+        # but for 365 days it should have data.
+        # We perform a check to avoid crashing if it's just a quiet day, but raising error is safer if we expect data.
+        if full_history:
+             raise ValueError("No data fetched for any currency during full history fetch.")
+        else:
+             print("Warning: No data fetched in this window.")
+             return pd.DataFrame()
 
     combined = pd.concat(all_data, ignore_index=True)
     return combined

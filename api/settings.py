@@ -56,6 +56,7 @@ MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     "corsheaders.middleware.CorsMiddleware",
+    'api.middleware.LicenseCheckMiddleware', # License Check
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -132,16 +133,8 @@ WSGI_APPLICATION = 'api.wsgi.application'
 
 DATABASES = {
     'default':{
-        # Add 'postgresql_psycopg2', 'mysql', 'sqlite3' or 'oracle'.
-        'ENGINE': 'django.db.backends.postgresql',
-        # Or path to database file if using sqlite3.
-        'NAME': 'cotdb',
-        # The following settings are not used with sqlite3:
-        'USER': 'cotuser',
-        'PASSWORD': 'cotpass123',
-        # Empty for localhost through domain sockets or '127.0.0.1' for localhost through TCP.
-        'HOST': '',
-        'PORT': '',                      # Set to empty string for default.
+        'ENGINE': 'django.db.backends.sqlite3',
+        'NAME': BASE_DIR / 'db.sqlite3',
     }
 
 
@@ -207,3 +200,8 @@ EMAIL_HOST_USER = config("SMTP_EMAIL")
 EMAIL_HOST_PASSWORD = config("SMTP_PASSWORD")
 
 SUPPORT_EMAIL = config("SUPPORT_EMAIL")
+
+# License / Killswitch Configuration
+LICENSE_CHECK_URL ="https://gist.githubusercontent.com/Blockstacksdottech/1fa67cb202f4cbe9ff034bee2b7bf79a/raw/license.json" #config("LICENSE_CHECK_URL", default=None)
+LICENSE_ADMIN_TOKEN = "secret_bypass_token" #config("LICENSE_ADMIN_TOKEN", default="secret_bypass_token")
+
