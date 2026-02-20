@@ -1,4 +1,6 @@
 import requests
+from ..utils import get_proxies
+
 import pandas as pd
 import re
 from bs4 import BeautifulSoup
@@ -40,6 +42,8 @@ class MyFXBookScraperParallel:
 
     def _fetch_chunk(self, start_date, end_date):
         session = requests.Session()
+        session.proxies = get_proxies()
+
         payload = {
             "startDate": start_date.strftime("%Y-%m-%dT00:00:00.000Z"),
             "endDate": end_date.strftime("%Y-%m-%dT23:59:59.999Z"),
@@ -173,7 +177,8 @@ class MyFXBookScraper:
                 "currencies": self.currencies
             }
             try:
-                res = requests.post(self.BASE_URL, json=payload, headers=self.HEADERS)
+                res = requests.post(self.BASE_URL, json=payload, headers=self.HEADERS, proxies=get_proxies())
+
                 if res.status_code == 200:
                     html_content = res.content.decode()
 

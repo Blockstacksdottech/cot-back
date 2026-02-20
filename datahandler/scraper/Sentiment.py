@@ -1,4 +1,6 @@
 import requests
+from ..utils import get_proxies
+
 from bs4 import BeautifulSoup
 from datahandler.models import SentimentRecord
 from django.utils import timezone
@@ -95,7 +97,8 @@ class Sentiment:
             list: A list of dictionaries containing symbol and outlook data (if found).
         """
 
-        response = requests.get(url)
+        response = requests.get(url, proxies=get_proxies())
+
         soup = BeautifulSoup(response.content, 'html.parser')
 
         # Filter symbol list to remove duplicates and ensure uppercase for consistency

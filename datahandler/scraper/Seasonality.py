@@ -1,4 +1,6 @@
 import requests
+from ..utils import get_proxies
+
 import pandas as pd
 from datetime import datetime, timedelta
 from datahandler.models import Symbol,Seasonality,Trends
@@ -94,7 +96,8 @@ class MarketDataHandler:
             pd.DataFrame: A DataFrame containing the historical data.
         """
         url = f"{self.BASE_URL}?symbol={symbol_id}&resolution={resolution}&from={from_timestamp}&to={to_timestamp}"
-        response = requests.get(url, headers=self.HEADERS)
+        response = requests.get(url, headers=self.HEADERS, proxies=get_proxies())
+
         response.raise_for_status()
         data = response.json()
 
@@ -242,7 +245,8 @@ class MarketDataHandler:
     def fetch_yahoo_data(self, symbol, interval='1d', start="2010-01-01", end=None):
         symbol = symbol + "=X"
         print(f"Fetching data for {symbol}")
-        ticker = yf.Ticker(symbol)  # Add =X for forex pairs
+        ticker = yf.Ticker(symbol, proxy=get_proxies().get('https') if get_proxies() else None)  # Add =X for forex pairs
+
         df = ticker.history(interval=interval, start=start, end=end)
         df = df.reset_index()
         df.rename(columns={'Date': 'datetime', 'Close': 'c'}, inplace=True)
