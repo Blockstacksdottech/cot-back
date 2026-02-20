@@ -1,5 +1,4 @@
 from .models import *
-import investpy
 import datetime
 import re
 import numpy as np
@@ -88,7 +87,7 @@ def fetch_data(full_history=False):
     for currency in target:
         print(f"\nFetching data for {currency}...")
 
-        scraper = MyFXBookScraperParallel(start_date=start_date_str, currencies=[currency],max_workers=3)
+        scraper = MyFXBookScraperParallel(start_date=start_date_str, currencies=[currency],max_workers=1)
         df = scraper.fetch_data()
 
         if df.empty:

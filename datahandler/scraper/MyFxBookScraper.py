@@ -16,16 +16,21 @@ from random import uniform
 class MyFXBookScraperParallel:
     BASE_URL = "https://widget.myfxbook.com/calendar/search.html"
     HEADERS = {
-        "content-type": "application/json",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36",
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
         "Referer": "https://www.myfxbook.com/",
         "Origin": "https://www.myfxbook.com",
-        "Authority": "widget.myfxbook.com"
+        "Sec-Ch-Ua": '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Fetch-Dest": "empty",
+        "Sec-Fetch-Mode": "cors",
+        "Sec-Fetch-Site": "same-site"
     }
 
-    def __init__(self, start_date, end_date=None, currencies=None, max_workers=3):
+    def __init__(self, start_date, end_date=None, currencies=None, max_workers=1):
         self.start_date = datetime.strptime(start_date, "%d-%m-%Y")
         self.end_date = datetime.strptime(end_date, "%d-%m-%Y") if end_date else datetime.today()
         self.currencies = currencies or ["USD"]
