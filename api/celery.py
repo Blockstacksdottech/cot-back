@@ -20,6 +20,8 @@ app.config_from_object('django.conf:settings', namespace='CELERY')
 app.conf.task_queues = (
     Queue('default', routing_key='default'),
     Queue('admin', routing_key='admin'),
+    Queue('heavy', routing_key='heavy'),
+    Queue('light', routing_key='light'),
 )
 
 app.conf.task_default_queue = 'default'
@@ -27,12 +29,12 @@ app.conf.task_default_exchange_type = 'direct'
 app.conf.task_default_routing_key = 'default'
 
 app.conf.task_routes = {
-    'datahandler.tasks.fetch_data': {'queue': 'default'},
-    'datahandler.tasks.fetch_calendar': {'queue': 'default'},
-    'datahandler.tasks.fetch_seasonality': {'queue': 'default'},
-    'datahandler.tasks.fetch_trends': {'queue': 'default'},
-    'datahandler.tasks.fetch-sentiment-every-10min': {'queue': 'default'},
-    'datahandler.tasks.manual_*': {'queue': 'admin'},  # pattern for admin-triggered tasks
+    'datahandler.tasks.fetch_data': {'queue': 'heavy'},
+    'datahandler.tasks.fetch_calendar': {'queue': 'heavy'},
+    'datahandler.tasks.fetch_seasonality': {'queue': 'light'},
+    'datahandler.tasks.fetch_trends': {'queue': 'light'},
+    'datahandler.tasks.fetch_sentiment': {'queue': 'light'},
+    'datahandler.tasks.manual_*': {'queue': 'admin'},
 }
 
 # Load task modules from all registered Django apps.
@@ -48,7 +50,7 @@ app.conf.beat_schedule = {
     },
     'test-calendar': {
         'task': 'datahandler.tasks.fetch_calendar',
-        'schedule': crontab(minute='*/45'),
+        'schedule': crontab(hour=6, minute=0),
         'args': (),
     },
     'seasonality-task': {
