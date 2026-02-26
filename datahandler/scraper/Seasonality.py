@@ -4,7 +4,13 @@ from ..utils import get_proxies
 import pandas as pd
 from datetime import datetime, timedelta
 from datahandler.models import Symbol,Seasonality,Trends
-import yfinance as yf
+import time
+import random
+import pandas as pd
+try:
+    from curl_cffi import requests as curl_requests
+except ImportError:
+    curl_requests = None
 
 symbol_id_list = {'AUDCAD': '8',
  'AUDJPY': '9',
@@ -247,17 +253,102 @@ class MarketDataHandler:
         return final_res
     
 
-    def fetch_yahoo_data(self, symbol, interval='1d', start="2010-01-01", end=None):
-        symbol = symbol + "=X"
-        print(f"Fetching data for {symbol}")
-        ticker = yf.Ticker(symbol, proxy=get_proxies().get('https') if get_proxies() else None)  # Add =X for forex pairs
+    def fetch_yahoo_data(self, symbol, interval='1d', start="2010-01-01", end=None, max_retries=3):
+        """
+        Directly fetches data from the Yahoo Finance API using curl_cffi for browser impersonation.
+        Bypasses the unstable yfinance library.
+        """
+        symbol_yahoo = symbol + "=X"
+        print(f"Fetching data for {symbol_yahoo} via direct Yahoo API...")
+        
+        # Convert dates to timestamps
+        try:
+            start_ts = int(datetime.strptime(start, "%Y-%m-%d").timestamp())
+            if end:
+                end_ts = int(datetime.strptime(end, "%Y-%m-%d").timestamp())
+            else:
+                end_ts = int(time.time())
+        except Exception as e:
+            print(f"❌ Date conversion error: {e}")
+            return pd.DataFrame()
 
-        df = ticker.history(interval=interval, start=start, end=end)
-        df = df.reset_index()
-        df.rename(columns={'Date': 'datetime', 'Close': 'c'}, inplace=True)
-        df['t'] = df['datetime'].astype('int64') // 10**9
-        print("done")
-        return df
+        url = f"https://query1.finance.yahoo.com/v8/finance/chart/{symbol_yahoo}"
+        params = {
+            "period1": start_ts,
+            "period2": end_ts,
+            "interval": interval,
+            "events": "div|split",
+            "includePrePost": "false"
+        }
+
+        for attempt in range(max_retries):
+            try:
+                # Use a unique 8-char session ID for proxy sticky sessions
+                session_id = ''.join(random.choices('abcdefghijklmnopqrstuvwxyz0123456789', k=8))
+                proxies = get_proxies(session_id=session_id)
+                
+                if curl_requests:
+                    response = curl_requests.get(
+                        url, 
+                        params=params, 
+                        proxies=proxies, 
+                        impersonate="chrome", 
+                        timeout=15
+                    )
+                else:
+                    response = requests.get(
+                        url, 
+                        params=params, 
+                        proxies=proxies, 
+                        headers={"User-Agent": "Mozilla/5.0"},
+                        timeout=15
+                    )
+                
+                if response.status_code == 200:
+                    data = response.json()
+                    if "chart" in data and data["chart"]["result"]:
+                        result = data["chart"]["result"][0]
+                        timestamps = result.get("timestamp", [])
+                        indicators = result.get("indicators", {}).get("quote", [{}])[0]
+                        closes = indicators.get("close", [])
+                        
+                        if not timestamps or not closes:
+                            print(f"⚠️ Received empty data components for {symbol_yahoo} (Attempt {attempt+1}/{max_retries})")
+                            time.sleep(random.uniform(2, 5))
+                            continue
+                        
+                        df = pd.DataFrame({
+                            'datetime': [datetime.fromtimestamp(ts) for ts in timestamps],
+                            'c': closes,
+                            't': timestamps
+                        })
+                        
+                        # Clean NaN values
+                        df = df.dropna(subset=['c'])
+                        
+                        if df.empty:
+                            print(f"⚠️ Resulting DataFrame is empty after cleaning for {symbol_yahoo}")
+                            continue
+                            
+                        print(f"✅ Successfully fetched {len(df)} rows for {symbol_yahoo}")
+                        return df
+                    else:
+                        print(f"⚠️ Unexpected JSON structure for {symbol_yahoo}: {data}")
+                elif response.status_code == 429:
+                    print(f"🚦 Rate limited for {symbol_yahoo} (Attempt {attempt+1}/{max_retries})")
+                else:
+                    print(f"❌ Error response {response.status_code} for {symbol_yahoo}")
+                
+            except Exception as e:
+                print(f"❌ Exception fetching {symbol_yahoo} (Attempt {attempt+1}/{max_retries}): {e}")
+            
+            # Backoff
+            sleep_time = random.uniform(3, 7) * (attempt + 1)
+            print(f"Sleeping {sleep_time:.2f}s before retry...")
+            time.sleep(sleep_time)
+                
+        print(f"🛑 Failed to fetch data for {symbol_yahoo} after {max_retries} attempts.")
+        return pd.DataFrame()
 
     def calculate_new_trend(self, df):
         df = df.copy()
