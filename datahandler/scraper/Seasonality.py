@@ -7,6 +7,7 @@ from datahandler.models import Symbol,Seasonality,Trends
 import time
 import random
 import pandas as pd
+import traceback
 try:
     from curl_cffi import requests as curl_requests
 except ImportError:
@@ -293,7 +294,7 @@ class MarketDataHandler:
                         params=params, 
                         proxies=proxies, 
                         impersonate="chrome", 
-                        timeout=15
+                        timeout=30 # Increased timeout for residential proxies
                     )
                 else:
                     response = requests.get(
@@ -301,7 +302,7 @@ class MarketDataHandler:
                         params=params, 
                         proxies=proxies, 
                         headers={"User-Agent": "Mozilla/5.0"},
-                        timeout=15
+                        timeout=30
                     )
                 
                 if response.status_code == 200:
@@ -337,10 +338,12 @@ class MarketDataHandler:
                 elif response.status_code == 429:
                     print(f"🚦 Rate limited for {symbol_yahoo} (Attempt {attempt+1}/{max_retries})")
                 else:
-                    print(f"❌ Error response {response.status_code} for {symbol_yahoo}")
+                    print(f"❌ Error response {response.status_code} for {symbol_yahoo}: {response.text[:200]}")
                 
             except Exception as e:
                 print(f"❌ Exception fetching {symbol_yahoo} (Attempt {attempt+1}/{max_retries}): {e}")
+                # Log full traceback to help debug server-side failures
+                traceback.print_exc()
             
             # Backoff
             sleep_time = random.uniform(3, 7) * (attempt + 1)

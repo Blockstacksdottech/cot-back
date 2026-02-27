@@ -1,4 +1,5 @@
 from decouple import config
+from urllib.parse import quote
 
 def get_proxies(session_id=None):
     """
@@ -16,7 +17,11 @@ def get_proxies(session_id=None):
             # Format: _session-8charID_lifetime-duration
             proxy_pass = f"{proxy_pass}_session-{session_id}_lifetime-10m"
         
-        proxy_url = f"http://{proxy_user}:{proxy_pass}@{proxy_host}:{proxy_port}"
+        # Use quote to ensure special characters in user/pass don't break the URL
+        safe_user = quote(proxy_user)
+        safe_pass = quote(proxy_pass)
+        
+        proxy_url = f"http://{safe_user}:{safe_pass}@{proxy_host}:{proxy_port}"
         return {
             "http": proxy_url,
             "https": proxy_url,
