@@ -76,25 +76,82 @@ def test_proxy():
 
     # 4. Test Connectivity to Target APIs via curl_cffi
     print("\n--- Testing Target API Connectivity (with curl_cffi) ---")
-    target_urls = {
-        "Yahoo Finance": "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X",
-        "MyFXBook TVC": "https://www.myfxbook.com/tvc/history",
-        "MyFXBook Widget": "https://widget.myfxbook.com/calendar/search.html"
-    }
+    
+    # Define targets with their specific requirements
+    targets = [
+        {
+            "name": "Yahoo Finance (Chart API)",
+            "url": "https://query1.finance.yahoo.com/v8/finance/chart/EURUSD=X",
+            "method": "GET"
+        },
+        {
+            "name": "MyFXBook Calendar (Search)",
+            "url": "https://widget.myfxbook.com/calendar/search.html",
+            "method": "POST",
+            "headers": {
+                "Content-Type": "application/json",
+                "Accept": "application/json, text/plain, */*",
+                "Referer": "https://www.myfxbook.com/",
+                "Origin": "https://www.myfxbook.com",
+                "Sec-Fetch-Dest": "empty",
+                "Sec-Fetch-Mode": "cors",
+                "Sec-Fetch-Site": "same-site"
+            },
+            "json": {
+                "startDate": "2024-02-27T00:00:00.000Z",
+                "endDate": "2024-02-27T23:59:59.999Z",
+                "language": "en",
+                "impacts": ["3", "2", "1", "0"],
+                "currencies": ["USD"]
+            }
+        },
+        {
+            "name": "MyFXBook Community Outlook",
+            "url": "https://www.myfxbook.com/community/outlook",
+            "method": "GET",
+            "headers": {
+                "Referer": "https://www.myfxbook.com/",
+                "Upgrade-Insecure-Requests": "1"
+            }
+        }
+    ]
 
-    for name, url in target_urls.items():
+    for target in targets:
+        name = target["name"]
+        url = target["url"]
+        method = target["method"]
+        headers = target.get("headers", {})
+        
         try:
             session_id = f"test_{random.randint(1000, 9999)}"
             proxies = get_proxies(session_id=session_id)
             
-            print(f"🔗 Testing {name}...")
-            resp = curl_requests.get(url, proxies=proxies, impersonate="chrome", timeout=30)
+            print(f"🔗 Testing {name} ({method})...")
+            
+            if method == "POST":
+                resp = curl_requests.post(
+                    url, 
+                    json=target.get("json"), 
+                    headers=headers,
+                    proxies=proxies, 
+                    impersonate="chrome", 
+                    timeout=30
+                )
+            else:
+                resp = curl_requests.get(
+                    url, 
+                    headers=headers,
+                    proxies=proxies, 
+                    impersonate="chrome", 
+                    timeout=30
+                )
             
             if resp.status_code == 200:
                 print(f"✅ {name} SUCCESS: 200 OK")
             else:
                 print(f"❌ {name} FAILED: {resp.status_code}")
-                # print(f"Response: {resp.text[:200]}")
+                if resp.status_code == 405:
+                    print("   (Note: 405 often means GET was used on a POST-only endpoint)")
         except Exception as e:
             print(f"❌ {name} ERROR: {e}")
 
