@@ -35,6 +35,30 @@ from .helper import update_user_subscription, get_valid_and_tier, get_tier_level
 
 
 # helpers here
+def parse_date_to_end_of_day(date_str):
+    """
+    Parses a date string in multiple formats and returns a datetime object
+    set to the end of that day (23:59:59) for inclusive filtering.
+    """
+    if not date_str:
+        return None
+        
+    formats = [
+        "%Y-%m-%dT%H:%M:%SZ", # ISO
+        "%Y-%m-%d",           # YYYY-MM-DD
+        "%d-%m-%Y",           # DD-MM-YYYY
+    ]
+    
+    for fmt in formats:
+        try:
+            dt = datetime.datetime.strptime(date_str, fmt)
+            # If the format was just a date (length <= 10), set to end of day
+            if len(date_str) <= 10:
+                dt = dt.replace(hour=23, minute=59, second=59)
+            return dt
+        except ValueError:
+            continue
+    return None
 
 
 # Create your views here.
@@ -166,13 +190,16 @@ class DataHandler(ModelViewSet):
     def get_queryset(self):
         query_date = self.request.query_params.get("date",None)
         if query_date:
-            target = DateInterval.objects.filter(date=datetime.datetime.strptime(query_date, "%Y-%m-%dT%H:%M:%SZ").date()).first()
-            if target:
-                return [target]
-            else:
-                return [DateInterval.objects.latest('date')]
-        else:
-            return [DateInterval.objects.latest('date')]
+            target_dt = parse_date_to_end_of_day(query_date)
+            if target_dt:
+                # Filter for DateIntervals exactly matching or before the target datetime
+                # Note: DateInterval.date is a DateTimeField
+                target = DateInterval.objects.filter(date__lte=target_dt).order_by('-date').first()
+                if target:
+                    return [target]
+        
+        # Fallback to latest
+        return [DateInterval.objects.latest('date')]
         
 class AllDataHandler(ModelViewSet):
     permission_classes = [IsCustomPremiumData]
@@ -274,7 +301,11 @@ class UserTrendView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request, *args, **kwargs):
-        target_date = datetime.date.today()
+        date_str = request.query_params.get('date')
+        if date_str:
+            target_date = parse_date_to_end_of_day(date_str)
+        else:
+            target_date = datetime.datetime.now()
 
         # Subquery to find the closest Trends record for each symbol
         closest_trend_subquery = Trends.objects.filter(
@@ -1250,12 +1281,9 @@ class AdmDateTrendView(APIView):
         if not date_str:
             return Response({"error": "Date parameter is required."}, status=HTTP_400_BAD_REQUEST)
 
-        try:
-            target_date = parse_date(date_str)
-            if not target_date:
-                raise ValueError("Invalid date format.")
-        except ValueError:
-            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=HTTP_400_BAD_REQUEST)
+        target_date = parse_date_to_end_of_day(date_str)
+        if not target_date:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD or DD-MM-YYYY."}, status=HTTP_400_BAD_REQUEST)
 
         # Subquery to find the closest Trends record for each symbol
         closest_trend_subquery = Trends.objects.filter(
@@ -1290,13 +1318,9 @@ class AdmDateSeasonalityView(APIView):
         if not date_str:
             return Response({"error": "Date parameter is required."}, status=HTTP_400_BAD_REQUEST)
 
-        try:
-            # Parse the date string into a datetime object
-            target_date = parse_date(date_str)
-            if not target_date:
-                raise ValueError("Invalid date format.")
-        except ValueError:
-            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=HTTP_400_BAD_REQUEST)
+        target_date = parse_date_to_end_of_day(date_str)
+        if not target_date:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD or DD-MM-YYYY."}, status=HTTP_400_BAD_REQUEST)
 
         # Convert the target date to year and month for filtering
         target_year = target_date.year
@@ -1345,13 +1369,9 @@ class AdmDateScannerView(APIView):
         if not date_str:
             return Response({"error": "Date parameter is required."}, status=HTTP_400_BAD_REQUEST)
 
-        try:
-            # Parse the date string into a datetime object
-            target_date = parse_date(date_str)
-            if not target_date:
-                raise ValueError("Invalid date format.")
-        except ValueError:
-            return Response({"error": "Invalid date format. Use YYYY-MM-DD."}, status=HTTP_400_BAD_REQUEST)
+        target_date = parse_date_to_end_of_day(date_str)
+        if not target_date:
+            return Response({"error": "Invalid date format. Use YYYY-MM-DD or DD-MM-YYYY."}, status=HTTP_400_BAD_REQUEST)
 
         # Subquery to find the closest DateInterval for each symbol
         date_interval = DateInterval.objects.filter(
