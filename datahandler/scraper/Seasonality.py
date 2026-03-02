@@ -2,12 +2,12 @@ import requests
 from ..utils import get_proxies
 
 import pandas as pd
-from datetime import datetime, timedelta
 from datahandler.models import Symbol,Seasonality,Trends
 import time
 import random
 import pandas as pd
 import traceback
+from datetime import datetime, timedelta, timezone as dt_timezone
 try:
     from curl_cffi import requests as curl_requests
 except ImportError:
@@ -218,9 +218,10 @@ class MarketDataHandler:
         Returns:
             dict: A dictionary containing seasonality and trend for the symbol.
         """
-        # Adjust the from_timestamp to fetch 6 years of data
-        to_timestamp = int(datetime.now().timestamp())
-        from_timestamp = int((datetime.now() - timedelta(days=15 * 365)).timestamp())
+        # Adjust the from_timestamp to fetch 15 years of data in UTC
+        now_utc = datetime.now(dt_timezone.utc)
+        to_timestamp = int(now_utc.timestamp())
+        from_timestamp = int((now_utc - timedelta(days=15 * 365)).timestamp())
 
         # Fetch monthly data
         monthly_data = self.fetch_data(symbol_id, "1M", from_timestamp, to_timestamp)
@@ -262,13 +263,18 @@ class MarketDataHandler:
         symbol_yahoo = symbol + "=X"
         print(f"Fetching data for {symbol_yahoo} via direct Yahoo API...")
         
-        # Convert dates to timestamps
+        # Convert dates to UTC timestamps
         try:
-            start_ts = int(datetime.strptime(start, "%Y-%m-%d").timestamp())
+            # Parse start date and set to start of day UTC
+            start_dt = datetime.strptime(start, "%Y-%m-%d").replace(tzinfo=dt_timezone.utc)
+            start_ts = int(start_dt.timestamp())
+            
             if end:
-                end_ts = int(datetime.strptime(end, "%Y-%m-%d").timestamp())
+                # Parse end date and set to end of day UTC (23:59:59) for inclusivity
+                end_dt = datetime.strptime(end, "%Y-%m-%d").replace(hour=23, minute=59, second=59, tzinfo=dt_timezone.utc)
+                end_ts = int(end_dt.timestamp())
             else:
-                end_ts = int(time.time())
+                end_ts = int(datetime.now(dt_timezone.utc).timestamp())
         except Exception as e:
             print(f"❌ Date conversion error: {e}")
             return pd.DataFrame()
@@ -319,7 +325,7 @@ class MarketDataHandler:
                             continue
                         
                         df = pd.DataFrame({
-                            'datetime': [datetime.fromtimestamp(ts) for ts in timestamps],
+                            'datetime': pd.to_datetime(timestamps, unit='s', utc=True),
                             'c': closes,
                             't': timestamps
                         })
